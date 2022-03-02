@@ -9,6 +9,10 @@ import (
 	"net/http"
 )
 
+func init() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+}
+
 type Resource struct {
 	Address string  `json:"address"`
 	Port    int     `json:"port"`
@@ -36,10 +40,6 @@ func NewFileServer() *FileServer {
 
 	fileServer.Handler = router
 	return fileServer
-}
-
-func init() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
 
 func (fs *FileServer) uploadInitHandler(w http.ResponseWriter, r *http.Request) {

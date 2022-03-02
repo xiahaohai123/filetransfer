@@ -191,6 +191,18 @@ func TestUploadFileInitialise(t *testing.T) {
 	})
 }
 
+func TestUploadFile(t *testing.T) {
+	url := "/file/upload"
+	fileServer := filetransfer.NewFileServer()
+
+	t.Run("api exists", func(t *testing.T) {
+		request := newPostRequest(url, nil)
+		response := httptest.NewRecorder()
+		fileServer.ServeHTTP(response, request)
+		assertIntNotEquals(t, response.Code, http.StatusNotFound)
+	})
+}
+
 func testHttpStatus(t *testing.T, requestBody io.Reader, got, wantStatus int) {
 	t.Helper()
 	if got != wantStatus {
@@ -207,6 +219,13 @@ func assertIntEquals(t *testing.T, got, want int) {
 	t.Helper()
 	if got != want {
 		t.Errorf("want %d but got %d", want, got)
+	}
+}
+
+func assertIntNotEquals(t *testing.T, got, notWant int) {
+	t.Helper()
+	if got == notWant {
+		t.Errorf("don't want %d bug got", notWant)
 	}
 }
 
