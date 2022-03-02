@@ -2,6 +2,7 @@ package filetransfer
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/kirinlabs/utils/str"
 	"log"
 	"net/http"
@@ -41,18 +42,39 @@ func init() {
 }
 
 func (fs *FileServer) uploadInitHandler(w http.ResponseWriter, r *http.Request) {
-	var uploadInitBody UploadInitReqBody
-	err := json.NewDecoder(r.Body).Decode(&uploadInitBody)
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	fs.handleUploadInit(w, r)
+}
+
+func (fs *FileServer) handleUploadInit(w http.ResponseWriter, r *http.Request) {
+	uploadInitBody, err := fs.extractBody(r)
 	if err != nil {
-		log.Printf("problem decode request body: %v", err)
+		log.Printf("problem extract request body: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if !isUploadInitReqBodyValid(uploadInitBody) {
+	if !isUploadInitReqBodyValid(*uploadInitBody) {
 		log.Printf("got unsupported request body")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+}
+
+func (fs *FileServer) extractBody(r *http.Request) (*UploadInitReqBody, error) {
+	var uploadInitBody UploadInitReqBody
+	if r.Body == nil {
+		err := fmt.Errorf("got nil request body")
+		return nil, err
+	}
+	err := json.NewDecoder(r.Body).Decode(&uploadInitBody)
+	if err != nil {
+		err = fmt.Errorf("problem decode request body: %v", err)
+		return nil, err
+	}
+	return &uploadInitBody, nil
 }
 
 func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
