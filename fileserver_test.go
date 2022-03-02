@@ -4,13 +4,24 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"summersea.top/filetransfer"
 	"testing"
 )
+
+type errorBody struct {
+	Error errorContent `json:"error"`
+}
+
+type errorContent struct {
+	Message string `json:"message"`
+	Code    string `json:"code"`
+}
 
 func TestUploadFileInitialise(t *testing.T) {
 	url := "/file/upload/initialization"
@@ -205,6 +216,26 @@ func TestUploadFile(t *testing.T) {
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusForbidden)
 	})
+
+	t.Run("can not find taskId in system", func(t *testing.T) {
+		taskId := "a55b14b2-fb55-40b8-8311-6d1e7d949fb5"
+		uploadUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
+		request := newPostRequest(uploadUrl, nil)
+		response := httptest.NewRecorder()
+		fileServer.ServeHTTP(response, request)
+		assertIntEquals(t, response.Code, http.StatusBadRequest)
+		assertStringEquals(t, response.Header().Get("Content-Type"), "application/json")
+
+		wantErrorBody := errorBody{
+			errorContent{
+				"The task id is not found.",
+				"ResourceNotFound",
+			},
+		}
+		var gotErrorBody errorBody
+		_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
+		assertStructEquals(t, gotErrorBody, wantErrorBody)
+	})
 }
 
 func testHttpStatus(t *testing.T, requestBody io.Reader, got, wantStatus int) {
@@ -235,6 +266,20 @@ func assertIntNotEquals(t *testing.T, got, notWant int) {
 	t.Helper()
 	if got == notWant {
 		t.Errorf("don't want %d bug got", notWant)
+	}
+}
+
+func assertStringEquals(t *testing.T, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("want '%s' bug got '%s'", want, got)
+	}
+}
+
+func assertStructEquals(t *testing.T, got, want interface{}) {
+	t.Helper()
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("want %+v but got %+v", want, got)
 	}
 }
 
