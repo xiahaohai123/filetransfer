@@ -1,6 +1,7 @@
 package filetransfer_test
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -14,7 +15,7 @@ import (
 func TestUploadFileInitialise(t *testing.T) {
 	url := "/file/upload/initialization"
 	fileServer := filetransfer.NewFileServer()
-	//correctJson := `{resource}`
+	correctJson := `{"resource":{"address":"summersea1.top","port":22,"account":{"name":"ccc","password":"pwd"}},"path":"/root"}`
 
 	t.Run("return status when input some param", func(t *testing.T) {
 		testTables := []struct {
@@ -173,6 +174,21 @@ func TestUploadFileInitialise(t *testing.T) {
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusForbidden)
 	})
+
+	t.Run("get task id when correctly use method", func(t *testing.T) {
+		request := newPostRequest(url, strings.NewReader(correctJson))
+		response := httptest.NewRecorder()
+		fileServer.ServeHTTP(response, request)
+		assertIntEquals(t, response.Code, http.StatusOK)
+
+		sc := bufio.NewScanner(response.Body)
+		sc.Scan()
+		taskId := sc.Text()
+		if len(strings.Split(taskId, "-")) != 5 {
+			t.Errorf("want uuid but got other '%s'", taskId)
+		}
+		assertContent(t, taskId)
+	})
 }
 
 func testHttpStatus(t *testing.T, requestBody io.Reader, got, wantStatus int) {
@@ -182,13 +198,21 @@ func testHttpStatus(t *testing.T, requestBody io.Reader, got, wantStatus int) {
 	}
 }
 
-func assertIntEquals(t *testing.T, got, want int) {
-	if got != want {
-		t.Errorf("want %d but got %d", got, want)
-	}
-}
-
 func newPostRequest(url string, requestBody io.Reader) *http.Request {
 	request, _ := http.NewRequest(http.MethodPost, url, requestBody)
 	return request
+}
+
+func assertIntEquals(t *testing.T, got, want int) {
+	t.Helper()
+	if got != want {
+		t.Errorf("want %d but got %d", want, got)
+	}
+}
+
+func assertContent(t *testing.T, content string) {
+	t.Helper()
+	if content == "" {
+		t.Errorf("want a content but got empty")
+	}
 }

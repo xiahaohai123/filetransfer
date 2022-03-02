@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kirinlabs/utils/str"
+	"github.com/satori/go.uuid"
 	"log"
 	"net/http"
 )
@@ -60,6 +61,12 @@ func (fs *FileServer) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 		log.Printf("got unsupported request body")
 		w.WriteHeader(http.StatusBadRequest)
 		return
+	}
+
+	uid := uuid.NewV4()
+	_, err = w.Write([]byte(uid.String()))
+	if err != nil {
+		log.Printf("problem write data to response")
 	}
 }
 
