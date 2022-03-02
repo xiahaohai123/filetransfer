@@ -168,8 +168,7 @@ func TestUploadFileInitialise(t *testing.T) {
 	})
 
 	t.Run("using wrong method", func(t *testing.T) {
-		request, _ := http.NewRequest(http.MethodGet, url, strings.NewReader(`{
-"resource":{},"path":"/root"}`))
+		request := newGetRequest(url)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusForbidden)
@@ -200,6 +199,11 @@ func TestUploadFile(t *testing.T) {
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
 		assertIntNotEquals(t, response.Code, http.StatusNotFound)
+
+		request = newGetRequest(url)
+		response = httptest.NewRecorder()
+		fileServer.ServeHTTP(response, request)
+		assertIntEquals(t, response.Code, http.StatusForbidden)
 	})
 }
 
@@ -212,6 +216,11 @@ func testHttpStatus(t *testing.T, requestBody io.Reader, got, wantStatus int) {
 
 func newPostRequest(url string, requestBody io.Reader) *http.Request {
 	request, _ := http.NewRequest(http.MethodPost, url, requestBody)
+	return request
+}
+
+func newGetRequest(url string) *http.Request {
+	request, _ := http.NewRequest(http.MethodGet, url, nil)
 	return request
 }
 

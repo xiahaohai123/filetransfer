@@ -37,6 +37,7 @@ func NewFileServer() *FileServer {
 	fileServer := &FileServer{}
 	router := http.NewServeMux()
 	router.Handle("/file/upload/initialization", http.HandlerFunc(fileServer.uploadInitHandler))
+	router.Handle("/file/upload", http.HandlerFunc(fileServer.uploadHandler))
 
 	fileServer.Handler = router
 	return fileServer
@@ -48,6 +49,13 @@ func (fs *FileServer) uploadInitHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	fs.handleUploadInit(w, r)
+}
+
+func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
 }
 
 func (fs *FileServer) handleUploadInit(w http.ResponseWriter, r *http.Request) {
