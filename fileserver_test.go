@@ -12,7 +12,7 @@ import (
 func TestUploadFileInitialise(t *testing.T) {
 	url := "/file/upload/initialization"
 
-	t.Run("return 400 when input wrong param", func(t *testing.T) {
+	t.Run("return status when input some param", func(t *testing.T) {
 		testTables := []struct {
 			uploadInitReqBody  filetransfer.UploadInitReqBody
 			wantResponseStatus int
