@@ -18,10 +18,11 @@ import (
 	"testing"
 )
 
+const correctJson = `{"resource":{"address":"summersea1.top","port":22,"account":{"name":"ccc","password":"pwd"}},"path":"/root"}`
+
 func TestUploadFileInitialise(t *testing.T) {
 	url := "/file/upload/initialization"
 	fileServer := filetransfer.NewFileServer(&StubStore{})
-	correctJson := `{"resource":{"address":"summersea1.top","port":22,"account":{"name":"ccc","password":"pwd"}},"path":"/root"}`
 
 	t.Run("return status when input some param", func(t *testing.T) {
 		testTables := []struct {
@@ -186,9 +187,7 @@ func TestUploadFileInitialise(t *testing.T) {
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusOK)
 
-		sc := bufio.NewScanner(response.Body)
-		sc.Scan()
-		taskId := sc.Text()
+		taskId := readLineResponse(response.Body)
 		if len(strings.Split(taskId, "-")) != 5 {
 			t.Errorf("want uuid but got other '%s'", taskId)
 		}
@@ -249,7 +248,7 @@ func TestUploadFile(t *testing.T) {
 		taskId := uuid.NewV4().String()
 		contentFilename, deleteContentFile := createTempFileWithContent(t)
 		defer deleteContentFile()
-		dstFilename := "tempFile" + uuid.NewV4().String() + ".txt"
+		dstFilename := createRandomFilename("tempFile", ".txt")
 		fileServer := filetransfer.NewFileServer(&StubStore{taskId: taskId, filename: dstFilename})
 		contentFile, _ := os.Open(contentFilename)
 		defer contentFile.Close()
@@ -259,8 +258,32 @@ func TestUploadFile(t *testing.T) {
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusNoContent)
 		assertFileContentEquals(t, contentFilename, dstFilename)
-		os.Remove(dstFilename)
+		_ = os.Remove(dstFilename)
 	})
+}
+
+func TestUploadByIntegration(t *testing.T) {
+	urlInit := "/file/upload/initialization"
+	urlUpload := "/file/upload"
+	dstFilename := createRandomFilename("tempFile", ".txt")
+	fileServer := filetransfer.NewFileServer(&StubStore{filename: dstFilename})
+	request := newPostRequest(urlInit, strings.NewReader(correctJson))
+	response := httptest.NewRecorder()
+	fileServer.ServeHTTP(response, request)
+	assertIntEquals(t, response.Code, http.StatusOK)
+	taskId := readLineResponse(response.Body)
+	uploadUrl := fmt.Sprintf("%s?taskId=%s", urlUpload, taskId)
+
+	contentFilename, deleteContentFile := createTempFileWithContent(t)
+	defer deleteContentFile()
+	contentFile, _ := os.Open(contentFilename)
+	defer contentFile.Close()
+	uploadReq := newPostRequest(uploadUrl, contentFile)
+	uploadResponse := httptest.NewRecorder()
+	fileServer.ServeHTTP(uploadResponse, uploadReq)
+	assertIntEquals(t, uploadResponse.Code, http.StatusNoContent)
+	assertFileContentEquals(t, contentFilename, dstFilename)
+	_ = os.Remove(dstFilename)
 }
 
 func testHttpStatus(t *testing.T, requestBody io.Reader, got, wantStatus int) {
@@ -330,34 +353,19 @@ func fileMd5Hash(t *testing.T, filename string) string {
 	hash := md5.New()
 	for {
 		readLen, _ := file.Read(buffer)
-		hash.Write(buffer[:readLen])
 		if readLen == 0 {
 			break
 		}
+		hash.Write(buffer[:readLen])
 	}
 	sum := hash.Sum(nil)
 	return fmt.Sprintf("%x", sum)
 }
 
-func createTempFile(t *testing.T) (*os.File, func()) {
-	t.Helper()
-
-	tempFile, err := os.OpenFile("tempFile"+uuid.NewV4().String()+".txt", os.O_RDWR|os.O_CREATE, 0777)
-
-	if err != nil {
-		t.Fatalf("could not create temp file %v", err)
-	}
-
-	removeFile := func() {
-		_ = os.Remove(tempFile.Name())
-	}
-	return tempFile, removeFile
-}
-
 func createTempFileWithContent(t *testing.T) (string, func()) {
 	t.Helper()
 
-	tempFile, err := os.OpenFile("tempFileWithContent"+uuid.NewV4().String()+".txt", os.O_RDWR|os.O_CREATE, 0777)
+	tempFile, err := os.OpenFile(createRandomFilename("tempFileWithContent", ".txt"), os.O_RDWR|os.O_CREATE, 0777)
 	if err != nil {
 		t.Fatalf("could not create temp file %v", err)
 	}
@@ -371,4 +379,14 @@ func createTempFileWithContent(t *testing.T) (string, func()) {
 		_ = os.Remove(tempFile.Name())
 	}
 	return tempFile.Name(), removeFile
+}
+
+func createRandomFilename(pattern, suffix string) string {
+	return fmt.Sprintf("%s%s%s", pattern, uuid.NewV4().String(), suffix)
+}
+
+func readLineResponse(reader io.Reader) string {
+	sc := bufio.NewScanner(reader)
+	sc.Scan()
+	return sc.Text()
 }
