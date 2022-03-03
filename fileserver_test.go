@@ -213,6 +213,10 @@ func (s *StubStore) GetUploadData(taskId string) (io.Writer, func()) {
 	return nil, func() {}
 }
 
+func (s *StubStore) SaveUploadData(taskId string, uploadData filetransfer.UploadData) {
+	s.taskId = taskId
+}
+
 func TestUploadFile(t *testing.T) {
 	url := "/file/upload"
 	fileServer := filetransfer.NewFileServer(&StubStore{taskId: uuid.NewV4().String()})

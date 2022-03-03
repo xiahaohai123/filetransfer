@@ -49,7 +49,7 @@ func (fs *FileServer) uploadInitHandler(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	taskId := fs.handleUploadInit(*uploadInitBody)
+	taskId := fs.handleUploadInit(UploadData(*uploadInitBody))
 	writeStringToResponse(w, taskId)
 }
 
@@ -85,8 +85,10 @@ func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (fs *FileServer) handleUploadInit(body UploadInitReqBody) string {
-	return uuid.NewV4().String()
+func (fs *FileServer) handleUploadInit(uploadData UploadData) string {
+	taskId := uuid.NewV4().String()
+	fs.store.SaveUploadData(taskId, uploadData)
+	return taskId
 }
 
 func (fs *FileServer) extractBody(r *http.Request) (*UploadInitReqBody, error) {
@@ -152,4 +154,5 @@ type UploadData UploadInitReqBody
 
 type Store interface {
 	GetUploadData(taskId string) (io.Writer, func())
+	SaveUploadData(taskId string, uploadData UploadData)
 }
