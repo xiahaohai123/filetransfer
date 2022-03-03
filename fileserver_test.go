@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	uuid "github.com/satori/go.uuid"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,18 +15,9 @@ import (
 	"testing"
 )
 
-type errorBody struct {
-	Error errorContent `json:"error"`
-}
-
-type errorContent struct {
-	Message string `json:"message"`
-	Code    string `json:"code"`
-}
-
 func TestUploadFileInitialise(t *testing.T) {
 	url := "/file/upload/initialization"
-	fileServer := filetransfer.NewFileServer()
+	fileServer := filetransfer.NewFileServer(&StubStore{})
 	correctJson := `{"resource":{"address":"summersea1.top","port":22,"account":{"name":"ccc","password":"pwd"}},"path":"/root"}`
 
 	t.Run("return status when input some param", func(t *testing.T) {
@@ -201,9 +193,20 @@ func TestUploadFileInitialise(t *testing.T) {
 	})
 }
 
+type StubStore struct {
+	taskId string
+}
+
+func (s *StubStore) GetUploadData(taskId string) *filetransfer.UploadData {
+	if s.taskId == taskId {
+		return &filetransfer.UploadData{}
+	}
+	return nil
+}
+
 func TestUploadFile(t *testing.T) {
 	url := "/file/upload"
-	fileServer := filetransfer.NewFileServer()
+	fileServer := filetransfer.NewFileServer(&StubStore{})
 
 	t.Run("api exists", func(t *testing.T) {
 		request := newPostRequest(url, nil)
@@ -217,24 +220,34 @@ func TestUploadFile(t *testing.T) {
 		assertIntEquals(t, response.Code, http.StatusForbidden)
 	})
 
-	t.Run("can not find taskId in system", func(t *testing.T) {
+	t.Run("can not find task id in system", func(t *testing.T) {
 		taskId := "a55b14b2-fb55-40b8-8311-6d1e7d949fb5"
 		uploadUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
 		request := newPostRequest(uploadUrl, nil)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusBadRequest)
-		assertStringEquals(t, response.Header().Get("Content-Type"), "application/json")
+		assertStringEquals(t, response.Header().Get("Content-Type"), filetransfer.ContentTypeJsonValue)
 
-		wantErrorBody := errorBody{
-			errorContent{
-				"The task id is not found.",
-				"ResourceNotFound",
+		wantErrorBody := filetransfer.ErrorBody{
+			Error: filetransfer.ErrorContent{
+				Message: "The task id is not found.",
+				Code:    "ResourceNotFound",
 			},
 		}
-		var gotErrorBody errorBody
+		var gotErrorBody filetransfer.ErrorBody
 		_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
 		assertStructEquals(t, gotErrorBody, wantErrorBody)
+	})
+
+	t.Run("can find task id in system", func(t *testing.T) {
+		taskId := uuid.NewV4().String()
+		fileServer := filetransfer.NewFileServer(&StubStore{taskId: taskId})
+		uploadUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
+		request := newPostRequest(uploadUrl, nil)
+		response := httptest.NewRecorder()
+		fileServer.ServeHTTP(response, request)
+		assertIntEquals(t, response.Code, http.StatusNoContent)
 	})
 }
 

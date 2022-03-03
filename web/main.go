@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	server := filetransfer.NewFileServer()
+	server := filetransfer.NewFileServer(nil)
 
 	err := http.ListenAndServe(":80", server)
 	if err != nil {

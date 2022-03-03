@@ -7,39 +7,28 @@ import (
 	"github.com/satori/go.uuid"
 	"log"
 	"net/http"
+	"summersea.top/filetransfer/util"
 )
 
 func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
 
-type Resource struct {
-	Address string  `json:"address"`
-	Port    int     `json:"port"`
-	Account Account `json:"account"`
-}
-
-type Account struct {
-	Name     string `json:"name"`
-	Password string `json:"password"`
-}
-
-type UploadInitReqBody struct {
-	Resource Resource `json:"resource"`
-	Path     string   `json:"path"`
-}
+const ContentTypeJsonValue = "application/json;charset=UTF-8"
 
 type FileServer struct {
 	http.Handler
+	store Store
 }
 
-func NewFileServer() *FileServer {
+func NewFileServer(store Store) *FileServer {
 	fileServer := &FileServer{}
 	router := http.NewServeMux()
 	router.Handle("/file/upload/initialization", http.HandlerFunc(fileServer.uploadInitHandler))
 	router.Handle("/file/upload", http.HandlerFunc(fileServer.uploadHandler))
 
 	fileServer.Handler = router
+	fileServer.store = store
 	return fileServer
 }
 
@@ -48,17 +37,6 @@ func (fs *FileServer) uploadInitHandler(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	fs.handleUploadInit(w, r)
-}
-
-func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
-}
-
-func (fs *FileServer) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 	uploadInitBody, err := fs.extractBody(r)
 	if err != nil {
 		log.Printf("problem extract request body: %v", err)
@@ -70,12 +48,37 @@ func (fs *FileServer) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	taskId := fs.handleUploadInit(*uploadInitBody)
+	writeStringToResponse(w, taskId)
+}
 
-	uid := uuid.NewV4()
-	_, err = w.Write([]byte(uid.String()))
-	if err != nil {
-		log.Printf("problem write data to response")
+func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusForbidden)
+		return
 	}
+
+	param := util.ExtractUrlParam(r.URL.String())
+	taskId := param["taskId"]
+	uploadData := fs.store.GetUploadData(taskId)
+
+	if uploadData == nil {
+		taskNotFoundBody := ErrorBody{
+			Error: ErrorContent{
+				Message: "The task id is not found.",
+				Code:    "ResourceNotFound",
+			},
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		w.Header().Set("Content-type", ContentTypeJsonValue)
+		writeStructToResponse(w, taskNotFoundBody)
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (fs *FileServer) handleUploadInit(body UploadInitReqBody) string {
+	return uuid.NewV4().String()
 }
 
 func (fs *FileServer) extractBody(r *http.Request) (*UploadInitReqBody, error) {
@@ -111,4 +114,25 @@ func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
 		return false
 	}
 	return true
+}
+
+func writeStructToResponse(w http.ResponseWriter, object interface{}) {
+	err := json.NewEncoder(w).Encode(object)
+	if err != nil {
+		log.Printf("problem encode struct %+v to json. err: %v", object, err)
+	}
+}
+
+func writeStringToResponse(w http.ResponseWriter, data string) {
+	_, err := w.Write([]byte(data))
+	if err != nil {
+		log.Printf("problem write data to response")
+	}
+}
+
+type UploadData struct {
+}
+
+type Store interface {
+	GetUploadData(taskId string) *UploadData
 }
