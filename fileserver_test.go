@@ -3,12 +3,15 @@ package filetransfer_test
 import (
 	"bufio"
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	uuid "github.com/satori/go.uuid"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"summersea.top/filetransfer"
@@ -194,28 +197,30 @@ func TestUploadFileInitialise(t *testing.T) {
 }
 
 type StubStore struct {
-	taskId string
+	taskId   string
+	filename string
 }
 
-func (s *StubStore) GetUploadData(taskId string) *filetransfer.UploadData {
+func (s *StubStore) GetUploadData(taskId string) (io.Writer, func()) {
 	if s.taskId == taskId {
-		return &filetransfer.UploadData{}
+		file, _ := os.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, 0777)
+		return file, func() {
+			err := file.Close()
+			if err != nil {
+				log.Fatalf("%+v", err)
+			}
+		}
 	}
-	return nil
+	return nil, func() {}
 }
 
 func TestUploadFile(t *testing.T) {
 	url := "/file/upload"
-	fileServer := filetransfer.NewFileServer(&StubStore{})
+	fileServer := filetransfer.NewFileServer(&StubStore{taskId: uuid.NewV4().String()})
 
 	t.Run("api exists", func(t *testing.T) {
-		request := newPostRequest(url, nil)
+		request := newGetRequest(url)
 		response := httptest.NewRecorder()
-		fileServer.ServeHTTP(response, request)
-		assertIntNotEquals(t, response.Code, http.StatusNotFound)
-
-		request = newGetRequest(url)
-		response = httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusForbidden)
 	})
@@ -240,14 +245,21 @@ func TestUploadFile(t *testing.T) {
 		assertStructEquals(t, gotErrorBody, wantErrorBody)
 	})
 
-	t.Run("can find task id in system", func(t *testing.T) {
+	t.Run("upload", func(t *testing.T) {
 		taskId := uuid.NewV4().String()
-		fileServer := filetransfer.NewFileServer(&StubStore{taskId: taskId})
+		contentFilename, deleteContentFile := createTempFileWithContent(t)
+		defer deleteContentFile()
+		dstFilename := "tempFile" + uuid.NewV4().String() + ".txt"
+		fileServer := filetransfer.NewFileServer(&StubStore{taskId: taskId, filename: dstFilename})
+		contentFile, _ := os.Open(contentFilename)
+		defer contentFile.Close()
 		uploadUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
-		request := newPostRequest(uploadUrl, nil)
+		request := newPostRequest(uploadUrl, contentFile)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusNoContent)
+		assertFileContentEquals(t, contentFilename, dstFilename)
+		os.Remove(dstFilename)
 	})
 }
 
@@ -301,4 +313,62 @@ func assertContent(t *testing.T, content string) {
 	if content == "" {
 		t.Errorf("want a content but got empty")
 	}
+}
+
+func assertFileContentEquals(t *testing.T, filename1, filename2 string) {
+	t.Helper()
+	if fileMd5Hash(t, filename1) != fileMd5Hash(t, filename2) {
+		t.Errorf("file hash not equals: '%s' , '%s'", filename1, filename2)
+	}
+}
+
+func fileMd5Hash(t *testing.T, filename string) string {
+	t.Helper()
+	file, _ := os.Open(filename)
+	defer file.Close()
+	buffer := make([]byte, 256)
+	hash := md5.New()
+	for {
+		readLen, _ := file.Read(buffer)
+		hash.Write(buffer[:readLen])
+		if readLen == 0 {
+			break
+		}
+	}
+	sum := hash.Sum(nil)
+	return fmt.Sprintf("%x", sum)
+}
+
+func createTempFile(t *testing.T) (*os.File, func()) {
+	t.Helper()
+
+	tempFile, err := os.OpenFile("tempFile"+uuid.NewV4().String()+".txt", os.O_RDWR|os.O_CREATE, 0777)
+
+	if err != nil {
+		t.Fatalf("could not create temp file %v", err)
+	}
+
+	removeFile := func() {
+		_ = os.Remove(tempFile.Name())
+	}
+	return tempFile, removeFile
+}
+
+func createTempFileWithContent(t *testing.T) (string, func()) {
+	t.Helper()
+
+	tempFile, err := os.OpenFile("tempFileWithContent"+uuid.NewV4().String()+".txt", os.O_RDWR|os.O_CREATE, 0777)
+	if err != nil {
+		t.Fatalf("could not create temp file %v", err)
+	}
+	content := uuid.NewV4().String()
+	_, err = tempFile.Write([]byte(content))
+	if err != nil {
+		t.Fatalf("could not input content to file %v", err)
+	}
+	_ = tempFile.Close()
+	removeFile := func() {
+		_ = os.Remove(tempFile.Name())
+	}
+	return tempFile.Name(), removeFile
 }

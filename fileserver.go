@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kirinlabs/utils/str"
 	"github.com/satori/go.uuid"
+	"io"
 	"log"
 	"net/http"
 	"summersea.top/filetransfer/util"
@@ -60,7 +61,8 @@ func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	param := util.ExtractUrlParam(r.URL.String())
 	taskId := param["taskId"]
-	uploadData := fs.store.GetUploadData(taskId)
+	uploadData, closeChannel := fs.store.GetUploadData(taskId)
+	defer closeChannel()
 
 	if uploadData == nil {
 		taskNotFoundBody := ErrorBody{
@@ -73,7 +75,13 @@ func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-type", ContentTypeJsonValue)
 		writeStructToResponse(w, taskNotFoundBody)
 	} else {
-		w.WriteHeader(http.StatusNoContent)
+		err := fs.handleUpload(taskId, r.Body)
+		if err != nil {
+			log.Printf("problem upload file: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
 	}
 }
 
@@ -116,6 +124,16 @@ func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
 	return true
 }
 
+func (fs *FileServer) handleUpload(taskId string, reader io.Reader) error {
+	writer, closeChannel := fs.store.GetUploadData(taskId)
+	defer closeChannel()
+	_, err := io.Copy(writer, reader)
+	if err != nil {
+		return fmt.Errorf("problem transfer file: %v", err)
+	}
+	return nil
+}
+
 func writeStructToResponse(w http.ResponseWriter, object interface{}) {
 	err := json.NewEncoder(w).Encode(object)
 	if err != nil {
@@ -130,9 +148,8 @@ func writeStringToResponse(w http.ResponseWriter, data string) {
 	}
 }
 
-type UploadData struct {
-}
+type UploadData UploadInitReqBody
 
 type Store interface {
-	GetUploadData(taskId string) *UploadData
+	GetUploadData(taskId string) (io.Writer, func())
 }
