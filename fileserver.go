@@ -19,10 +19,10 @@ const ContentTypeJsonValue = "application/json;charset=UTF-8"
 
 type FileServer struct {
 	http.Handler
-	store Store
+	store DataAdapter
 }
 
-func NewFileServer(store Store) *FileServer {
+func NewFileServer(store DataAdapter) *FileServer {
 	fileServer := &FileServer{}
 	router := http.NewServeMux()
 	router.Handle("/file/upload/initialization", http.HandlerFunc(fileServer.uploadInitHandler))
@@ -61,10 +61,8 @@ func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	param := util.ExtractUrlParam(r.URL.String())
 	taskId := param["taskId"]
-	uploadData, closeChannel := fs.store.GetUploadData(taskId)
-	defer closeChannel()
 
-	if uploadData == nil {
+	if !fs.store.IsTaskExist(taskId) {
 		taskNotFoundBody := ErrorBody{
 			Error: ErrorContent{
 				Message: "The task id is not found.",
@@ -86,7 +84,7 @@ func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fs *FileServer) handleUploadInit(uploadData UploadData) string {
-	taskId := uuid.NewV4().String()
+	taskId := NewTaskId()
 	fs.store.SaveUploadData(taskId, uploadData)
 	return taskId
 }
@@ -127,9 +125,14 @@ func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
 }
 
 func (fs *FileServer) handleUpload(taskId string, reader io.Reader) error {
-	writer, closeChannel := fs.store.GetUploadData(taskId)
-	defer closeChannel()
-	_, err := io.Copy(writer, reader)
+	writeCloser := fs.store.GetUploadChannel(taskId)
+	defer func(writeCloser io.WriteCloser) {
+		err := writeCloser.Close()
+		if err != nil {
+			log.Printf("error close io:%v", err)
+		}
+	}(writeCloser)
+	_, err := io.Copy(writeCloser, reader)
 	if err != nil {
 		return fmt.Errorf("problem transfer file: %v", err)
 	}
@@ -150,9 +153,12 @@ func writeStringToResponse(w http.ResponseWriter, data string) {
 	}
 }
 
-type UploadData UploadInitReqBody
-
-type Store interface {
-	GetUploadData(taskId string) (io.Writer, func())
+type DataAdapter interface {
+	IsTaskExist(taskId string) bool
+	GetUploadChannel(taskId string) io.WriteCloser
 	SaveUploadData(taskId string, uploadData UploadData)
+}
+
+func NewTaskId() string {
+	return uuid.NewV4().String()
 }

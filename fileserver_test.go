@@ -8,7 +8,6 @@ import (
 	"fmt"
 	uuid "github.com/satori/go.uuid"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -200,21 +199,20 @@ type StubStore struct {
 	filename string
 }
 
-func (s *StubStore) GetUploadData(taskId string) (io.Writer, func()) {
+func (s *StubStore) GetUploadChannel(taskId string) io.WriteCloser {
 	if s.taskId == taskId {
 		file, _ := os.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, 0777)
-		return file, func() {
-			err := file.Close()
-			if err != nil {
-				log.Fatalf("%+v", err)
-			}
-		}
+		return file
 	}
-	return nil, func() {}
+	return nil
 }
 
 func (s *StubStore) SaveUploadData(taskId string, uploadData filetransfer.UploadData) {
 	s.taskId = taskId
+}
+
+func (s *StubStore) IsTaskExist(taskId string) bool {
+	return s.taskId == taskId
 }
 
 func TestUploadFile(t *testing.T) {
