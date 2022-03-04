@@ -350,6 +350,10 @@ func assertStringEquals(t *testing.T, got, want string) {
 
 func assertStructEquals(t *testing.T, got, want interface{}) {
 	t.Helper()
+	if got == nil || want == nil {
+		t.Errorf("unexpted nil pointer")
+		return
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("want %+v but got %+v", want, got)
 	}

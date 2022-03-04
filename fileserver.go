@@ -19,7 +19,7 @@ const ContentTypeJsonValue = "application/json;charset=UTF-8"
 
 type FileServer struct {
 	http.Handler
-	store DataAdapter
+	dataAdapter DataAdapter
 }
 
 func NewFileServer(store DataAdapter) *FileServer {
@@ -29,7 +29,7 @@ func NewFileServer(store DataAdapter) *FileServer {
 	router.Handle("/file/upload", http.HandlerFunc(fileServer.uploadHandler))
 
 	fileServer.Handler = router
-	fileServer.store = store
+	fileServer.dataAdapter = store
 	return fileServer
 }
 
@@ -61,7 +61,7 @@ func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	param := util.ExtractUrlParam(r.URL.String())
 	taskId := param["taskId"]
 
-	if !fs.store.IsTaskExist(taskId) {
+	if !fs.dataAdapter.IsTaskExist(taskId) {
 		taskNotFoundBody := ErrorBody{
 			Error: ErrorContent{
 				Message: "The task id is not found.",
@@ -84,7 +84,7 @@ func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 func (fs *FileServer) handleUploadInit(uploadData UploadData) string {
 	taskId := NewTaskId()
-	fs.store.SaveUploadData(taskId, uploadData)
+	fs.dataAdapter.SaveUploadData(taskId, uploadData)
 	return taskId
 }
 
@@ -127,7 +127,7 @@ func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
 }
 
 func (fs *FileServer) handleUpload(taskId string, reader io.Reader) error {
-	writeCloser, err := fs.store.GetUploadChannel(taskId)
+	writeCloser, err := fs.dataAdapter.GetUploadChannel(taskId)
 	if err != nil {
 		return fmt.Errorf("problem create channel %v", err)
 	}

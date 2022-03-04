@@ -96,6 +96,6 @@ func assertNotNil(t *testing.T, got interface{}) {
 func assertNil(t *testing.T, got interface{}) {
 	t.Helper()
 	if got != nil {
-		t.Errorf("want nil but got other: %v", got)
+		t.Errorf("want nil but got other: %+v", got)
 	}
 }
