@@ -127,14 +127,17 @@ func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
 }
 
 func (fs *FileServer) handleUpload(taskId string, reader io.Reader) error {
-	writeCloser := fs.store.GetUploadChannel(taskId)
+	writeCloser, err := fs.store.GetUploadChannel(taskId)
+	if err != nil {
+		return fmt.Errorf("problem create channel %v", err)
+	}
 	defer func(writeCloser io.WriteCloser) {
 		err := writeCloser.Close()
 		if err != nil {
 			log.Printf("error close io:%v", err)
 		}
 	}(writeCloser)
-	_, err := io.Copy(writeCloser, reader)
+	_, err = io.Copy(writeCloser, reader)
 	if err != nil {
 		return fmt.Errorf("problem transfer file: %v", err)
 	}
@@ -157,7 +160,7 @@ func writeStringToResponse(w http.ResponseWriter, data string) {
 
 type DataAdapter interface {
 	IsTaskExist(taskId string) bool
-	GetUploadChannel(taskId string) io.WriteCloser
+	GetUploadChannel(taskId string) (io.WriteCloser, error)
 	SaveUploadData(taskId string, uploadData UploadData)
 }
 

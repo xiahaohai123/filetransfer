@@ -221,12 +221,12 @@ type StubStore struct {
 	filename string
 }
 
-func (s *StubStore) GetUploadChannel(taskId string) io.WriteCloser {
+func (s *StubStore) GetUploadChannel(taskId string) (io.WriteCloser, error) {
 	if s.taskId == taskId {
 		file, _ := os.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, 0777)
-		return file
+		return file, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (s *StubStore) SaveUploadData(taskId string, uploadData filetransfer.UploadData) {
