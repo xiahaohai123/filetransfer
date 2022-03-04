@@ -14,6 +14,7 @@ type Account struct {
 type UploadInitReqBody struct {
 	Resource Resource `json:"resource"`
 	Path     string   `json:"path"`
+	Filename string   `json:"filename"`
 }
 
 type ErrorBody struct {

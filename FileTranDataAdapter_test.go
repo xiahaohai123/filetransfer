@@ -1,6 +1,7 @@
 package filetransfer_test
 
 import (
+	"log"
 	"summersea.top/filetransfer"
 	"testing"
 )
@@ -10,6 +11,7 @@ type StubDataStore struct {
 	existCalls   int
 	getDataCalls int
 	taskId       string
+	uploadData   filetransfer.UploadData
 }
 
 func (s *StubDataStore) SaveUploadData(taskId string, data filetransfer.UploadData) {
@@ -18,7 +20,7 @@ func (s *StubDataStore) SaveUploadData(taskId string, data filetransfer.UploadDa
 
 func (s *StubDataStore) GetUploadData(taskId string) *filetransfer.UploadData {
 	s.getDataCalls++
-	return nil
+	return &s.uploadData
 }
 
 func (s *StubDataStore) IsTaskExist(taskId string) bool {
@@ -45,11 +47,26 @@ func TestFileTranDataAdapter_IsTaskExist(t *testing.T) {
 
 func TestFileTranDataAdapter_GetUploadData(t *testing.T) {
 	existedTaskId := filetransfer.NewTaskId()
-	store := &StubDataStore{taskId: existedTaskId}
+	store := &StubDataStore{taskId: existedTaskId, uploadData: filetransfer.UploadData{
+		Resource: filetransfer.Resource{
+			Address: "192.168.138.129",
+			Port:    22,
+			Account: filetransfer.Account{
+				Name:     "test",
+				Password: "test",
+			},
+		},
+		Path:     "/home/test",
+		Filename: "testAaa.txt",
+	}}
 	adapter := filetransfer.NewFileTranDataAdapter(store)
-	channel := adapter.GetUploadChannel(existedTaskId)
+	channel, err := adapter.GetUploadChannel(existedTaskId)
+	log.Printf("%v", err)
 	assertNotNil(t, channel)
 	assertIntEquals(t, store.getDataCalls, 1)
+	if channel != nil {
+		assertNil(t, channel.Close())
+	}
 }
 
 func assertTrue(t *testing.T, got bool) {
@@ -70,5 +87,12 @@ func assertNotNil(t *testing.T, got interface{}) {
 	t.Helper()
 	if got == nil {
 		t.Errorf("want not nil bug got")
+	}
+}
+
+func assertNil(t *testing.T, got interface{}) {
+	t.Helper()
+	if got != nil {
+		t.Errorf("want nil but got other: %v", got)
 	}
 }
