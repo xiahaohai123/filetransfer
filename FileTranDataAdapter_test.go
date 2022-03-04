@@ -67,6 +67,7 @@ func TestFileTranDataAdapter_GetUploadData(t *testing.T) {
 	assertNotNil(t, channel)
 	assertIntEquals(t, store.getDataCalls, 1)
 	if channel != nil {
+		assertNil(t, channel.RollBack())
 		assertNil(t, channel.Close())
 	}
 }

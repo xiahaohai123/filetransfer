@@ -27,12 +27,12 @@ func (f *FileTranDataAdapter) IsTaskExist(taskId string) bool {
 	return f.dataStore.IsTaskExist(taskId)
 }
 
-func (f *FileTranDataAdapter) GetUploadChannel(taskId string) (io.WriteCloser, error) {
+func (f *FileTranDataAdapter) GetUploadChannel(taskId string) (WriteCloseRollback, error) {
 	uploadData := f.dataStore.GetUploadData(taskId)
 	return f.createSftpChannel(*uploadData)
 }
 
-func (f *FileTranDataAdapter) createSftpChannel(data UploadData) (io.WriteCloser, error) {
+func (f *FileTranDataAdapter) createSftpChannel(data UploadData) (WriteCloseRollback, error) {
 	resource := data.Resource
 	sshConfig := &ssh.ClientConfig{
 		User: resource.Account.Name,
@@ -53,13 +53,14 @@ func (f *FileTranDataAdapter) createSftpChannel(data UploadData) (io.WriteCloser
 		closeWithErrLog(sshClient)
 		return nil, fmt.Errorf("problem create sftp client: %v", err)
 	}
-	transferChannel, err := sftpClient.Create(sftp.Join(data.Path, data.Filename))
+	filePath := sftp.Join(data.Path, data.Filename)
+	transferChannel, err := sftpClient.Create(filePath)
 	if err != nil {
 		closeWithErrLog(sftpClient)
 		closeWithErrLog(sshClient)
 		return nil, fmt.Errorf("problem create upload channel: %v", err)
 	}
-	channel := &SftpUploadChannel{sshClient, sftpClient, transferChannel}
+	channel := &SftpUploadChannel{sshClient, sftpClient, transferChannel, filePath}
 
 	return channel, nil
 }
@@ -70,10 +71,16 @@ type DataStore interface {
 	IsTaskExist(taskId string) bool
 }
 
+type WriteCloseRollback interface {
+	io.WriteCloser
+	RollBack() error
+}
+
 type SftpUploadChannel struct {
 	sshClient  io.Closer
-	sftpClient io.Closer
+	sftpClient *sftp.Client
 	io.WriteCloser
+	filePath string
 }
 
 func (s *SftpUploadChannel) Close() error {
@@ -81,6 +88,10 @@ func (s *SftpUploadChannel) Close() error {
 	closeWithErrLog(s.sftpClient)
 	closeWithErrLog(s.sshClient)
 	return nil
+}
+
+func (s *SftpUploadChannel) RollBack() error {
+	return s.sftpClient.Remove(s.filePath)
 }
 
 func closeWithErrLog(closer io.Closer) {
