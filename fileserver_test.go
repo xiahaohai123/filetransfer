@@ -221,10 +221,20 @@ type StubStore struct {
 	filename string
 }
 
-func (s *StubStore) GetUploadChannel(taskId string) (io.WriteCloser, error) {
+type fileRollback struct {
+	*os.File
+}
+
+func (f *fileRollback) RollBack() error {
+	return os.Remove(f.Name())
+}
+
+func (s *StubStore) GetUploadChannel(taskId string) (filetransfer.WriteCloseRollback, error) {
 	if s.taskId == taskId {
+		rollback := fileRollback{}
 		file, _ := os.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, 0777)
-		return file, nil
+		rollback.File = file
+		return &rollback, nil
 	}
 	return nil, nil
 }

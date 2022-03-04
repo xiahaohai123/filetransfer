@@ -22,14 +22,14 @@ type FileServer struct {
 	dataAdapter DataAdapter
 }
 
-func NewFileServer(store DataAdapter) *FileServer {
+func NewFileServer(adapter DataAdapter) *FileServer {
 	fileServer := &FileServer{}
 	router := http.NewServeMux()
 	router.Handle("/file/upload/initialization", http.HandlerFunc(fileServer.uploadInitHandler))
 	router.Handle("/file/upload", http.HandlerFunc(fileServer.uploadHandler))
 
 	fileServer.Handler = router
-	fileServer.dataAdapter = store
+	fileServer.dataAdapter = adapter
 	return fileServer
 }
 
@@ -131,12 +131,7 @@ func (fs *FileServer) handleUpload(taskId string, reader io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("problem create channel %v", err)
 	}
-	defer func(writeCloser io.WriteCloser) {
-		err := writeCloser.Close()
-		if err != nil {
-			log.Printf("error close io:%v", err)
-		}
-	}(writeCloser)
+	defer closeWithErrLog(writeCloser)
 	_, err = io.Copy(writeCloser, reader)
 	if err != nil {
 		return fmt.Errorf("problem transfer file: %v", err)
@@ -160,7 +155,7 @@ func writeStringToResponse(w http.ResponseWriter, data string) {
 
 type DataAdapter interface {
 	IsTaskExist(taskId string) bool
-	GetUploadChannel(taskId string) (io.WriteCloser, error)
+	GetUploadChannel(taskId string) (WriteCloseRollback, error)
 	SaveUploadData(taskId string, uploadData UploadData)
 }
 
