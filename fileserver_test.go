@@ -17,7 +17,7 @@ import (
 	"testing"
 )
 
-const correctJson = `{"resource":{"address":"summersea1.top","port":22,"account":{"name":"ccc","password":"pwd"}},"path":"/root"}`
+const correctJson = `{"resource":{"address":"summersea1.top","port":22,"account":{"name":"ccc","password":"pwd"}},"path":"/root","filename":"test.txt"}`
 
 func TestUploadFileInitialise(t *testing.T) {
 	url := "/file/upload/initialization"
@@ -42,7 +42,8 @@ func TestUploadFileInitialise(t *testing.T) {
 							Password: "pwd",
 						},
 					},
-					Path: "/root",
+					Path:     "/home/test",
+					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
 			},
@@ -56,7 +57,8 @@ func TestUploadFileInitialise(t *testing.T) {
 							Password: "pwd",
 						},
 					},
-					Path: "/root",
+					Path:     "/root",
+					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
 			},
@@ -70,7 +72,8 @@ func TestUploadFileInitialise(t *testing.T) {
 							Password: "pwd",
 						},
 					},
-					Path: "/root",
+					Path:     "/root",
+					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
 			},
@@ -84,7 +87,8 @@ func TestUploadFileInitialise(t *testing.T) {
 							Password: "pwd",
 						},
 					},
-					Path: "/root",
+					Path:     "/root",
+					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
 			},
@@ -98,7 +102,8 @@ func TestUploadFileInitialise(t *testing.T) {
 							Password: "",
 						},
 					},
-					Path: "/root",
+					Path:     "/root",
+					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
 			},
@@ -112,7 +117,8 @@ func TestUploadFileInitialise(t *testing.T) {
 							Password: "pwddd",
 						},
 					},
-					Path: "",
+					Path:     "",
+					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
 			},
@@ -126,7 +132,8 @@ func TestUploadFileInitialise(t *testing.T) {
 							Password: "pwddd",
 						},
 					},
-					Path: "pwd",
+					Path:     "pwd",
+					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
 			},
@@ -142,6 +149,21 @@ func TestUploadFileInitialise(t *testing.T) {
 					},
 					Path: "/root/pwd",
 				},
+				wantResponseStatus: http.StatusBadRequest,
+			},
+			{
+				uploadInitReqBody: filetransfer.UploadInitReqBody{
+					Resource: filetransfer.Resource{
+						Address: "10.12.1.12",
+						Port:    256,
+						Account: filetransfer.Account{
+							Name:     "a",
+							Password: "pwddd",
+						},
+					},
+					Path:     "/root/pwd",
+					Filename: "testFile.txt",
+				},
 				wantResponseStatus: http.StatusOK,
 			},
 		}
@@ -155,7 +177,7 @@ func TestUploadFileInitialise(t *testing.T) {
 			request := newPostRequest(url, requestBody)
 			response := httptest.NewRecorder()
 			fileServer.ServeHTTP(response, request)
-			testHttpStatus(t, requestBody, response.Code, test.wantResponseStatus)
+			testHttpStatus(t, test.uploadInitReqBody, response.Code, test.wantResponseStatus)
 		}
 	})
 
@@ -288,10 +310,10 @@ func TestUploadByIntegration(t *testing.T) {
 	_ = os.Remove(dstFilename)
 }
 
-func testHttpStatus(t *testing.T, requestBody io.Reader, got, wantStatus int) {
+func testHttpStatus(t *testing.T, requestBody interface{}, got, wantStatus int) {
 	t.Helper()
 	if got != wantStatus {
-		t.Errorf("test case: %v \n got %d but want %d from response", requestBody, got, wantStatus)
+		t.Errorf("test case: %+v \n got %d but want %d from response", requestBody, got, wantStatus)
 	}
 }
 

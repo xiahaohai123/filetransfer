@@ -61,7 +61,9 @@ func TestFileTranDataAdapter_GetUploadData(t *testing.T) {
 	}}
 	adapter := filetransfer.NewFileTranDataAdapter(store)
 	channel, err := adapter.GetUploadChannel(existedTaskId)
-	log.Printf("%v", err)
+	if err != nil {
+		log.Printf("%v", err)
+	}
 	assertNotNil(t, channel)
 	assertIntEquals(t, store.getDataCalls, 1)
 	if channel != nil {

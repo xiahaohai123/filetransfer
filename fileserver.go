@@ -45,7 +45,6 @@ func (fs *FileServer) uploadInitHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if !isUploadInitReqBodyValid(*uploadInitBody) {
-		log.Printf("got unsupported request body")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -105,6 +104,9 @@ func (fs *FileServer) extractBody(r *http.Request) (*UploadInitReqBody, error) {
 
 func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
 	if !str.StartsWith(body.Path, "/") {
+		return false
+	}
+	if body.Filename == "" || str.StartsWith(body.Filename, "/") {
 		return false
 	}
 	resource := body.Resource
