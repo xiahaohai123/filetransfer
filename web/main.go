@@ -11,7 +11,7 @@ func main() {
 	adapter := filetransfer.NewFileTranDataAdapter(store)
 	server := filetransfer.NewFileServer(adapter)
 
-	err := http.ListenAndServe(":80", server)
+	err := http.ListenAndServe(":8080", server)
 	if err != nil {
 		log.Fatalf("could not listen on port 80: %v", err)
 	}
