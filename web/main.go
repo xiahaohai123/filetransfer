@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"summersea.top/filetransfer"
 )
 
@@ -11,7 +10,7 @@ func main() {
 	adapter := filetransfer.NewFileTranDataAdapter(store)
 	server := filetransfer.NewFileServer(adapter)
 
-	err := http.ListenAndServe(":8080", server)
+	err := server.Run(":8080")
 	if err != nil {
 		log.Fatalf("could not listen on port 80: %v", err)
 	}

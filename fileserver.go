@@ -3,6 +3,7 @@ package filetransfer
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/kirinlabs/utils/str"
 	"github.com/satori/go.uuid"
 	"io"
@@ -17,42 +18,45 @@ func init() {
 
 const ContentTypeJsonValue = "application/json;charset=UTF-8"
 
-type FileServer struct {
-	http.Handler
+const ErrorCodeInvalidInput = "InvalidParam"
+const ErrorContentInvalidInput = "InvalidParam"
+
+type FileServerController struct {
 	dataAdapter DataAdapter
 }
 
-func NewFileServer(adapter DataAdapter) *FileServer {
-	fileServer := &FileServer{}
-	router := http.NewServeMux()
-	router.Handle("/file/upload/initialization", http.HandlerFunc(fileServer.uploadInitHandler))
-	router.Handle("/file/upload", http.HandlerFunc(fileServer.uploadHandler))
-
-	fileServer.Handler = router
+func NewFileServer(adapter DataAdapter) *gin.Engine {
+	fileServer := &FileServerController{}
+	r := gin.Default()
+	r.POST("/file/upload/initialization", fileServer.uploadInitHandler)
+	r.POST("/file/upload", func(context *gin.Context) {
+		fileServer.uploadHandler(context.Writer, context.Request)
+	})
 	fileServer.dataAdapter = adapter
-	return fileServer
+	return r
 }
 
-func (fs *FileServer) uploadInitHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusForbidden)
+func (fs *FileServerController) uploadInitHandler(ctx *gin.Context) {
+	var uploadInitBody UploadInitReqBody
+	if err := ctx.ShouldBindJSON(&uploadInitBody); err != nil {
+		ctx.JSON(http.StatusBadRequest,
+			gin.H{"error": ErrorContent{Message: ErrorContentInvalidInput, Code: ErrorCodeInvalidInput}})
 		return
 	}
-	uploadInitBody, err := fs.extractBody(r)
-	if err != nil {
-		log.Printf("problem extract request body: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+	if !isUploadInitReqBodyValid(uploadInitBody) {
+		ctx.JSON(http.StatusBadRequest,
+			gin.H{"error": ErrorContent{Message: ErrorContentInvalidInput, Code: ErrorCodeInvalidInput}})
 		return
 	}
-	if !isUploadInitReqBodyValid(*uploadInitBody) {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	taskId := fs.handleUploadInit(UploadData(*uploadInitBody))
-	writeStringToResponse(w, taskId)
+	taskId := fs.handleUploadInit(UploadData(uploadInitBody))
+	ctx.String(http.StatusOK, taskId)
 }
 
-func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
+//func (fs *FileServerController) uploadHandlerGin(ctx *gin.Context) {
+//
+//}
+
+func (fs *FileServerController) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusForbidden)
 		return
@@ -82,13 +86,13 @@ func (fs *FileServer) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (fs *FileServer) handleUploadInit(uploadData UploadData) string {
+func (fs *FileServerController) handleUploadInit(uploadData UploadData) string {
 	taskId := NewTaskId()
 	fs.dataAdapter.SaveUploadData(taskId, uploadData)
 	return taskId
 }
 
-func (fs *FileServer) extractBody(r *http.Request) (*UploadInitReqBody, error) {
+func (fs *FileServerController) extractBody(r *http.Request) (*UploadInitReqBody, error) {
 	var uploadInitBody UploadInitReqBody
 	if r.Body == nil {
 		err := fmt.Errorf("got nil request body")
@@ -126,7 +130,7 @@ func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
 	return true
 }
 
-func (fs *FileServer) handleUpload(taskId string, reader io.Reader) error {
+func (fs *FileServerController) handleUpload(taskId string, reader io.Reader) error {
 	writeCloser, err := fs.dataAdapter.GetUploadChannel(taskId)
 	if err != nil {
 		return fmt.Errorf("problem create channel %v", err)

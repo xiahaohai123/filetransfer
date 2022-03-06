@@ -24,13 +24,17 @@ func TestUploadFileInitialise(t *testing.T) {
 	fileServer := filetransfer.NewFileServer(&StubStore{})
 
 	t.Run("return status when input some param", func(t *testing.T) {
+		errResoponseBody := filetransfer.ErrorBody{Error: filetransfer.ErrorContent{
+			Message: filetransfer.ErrorContentInvalidInput, Code: filetransfer.ErrorCodeInvalidInput}}
 		testTables := []struct {
 			uploadInitReqBody  filetransfer.UploadInitReqBody
 			wantResponseStatus int
+			wantResponseBody   interface{}
 		}{
 			{
 				uploadInitReqBody:  filetransfer.UploadInitReqBody{},
 				wantResponseStatus: http.StatusBadRequest,
+				wantResponseBody:   errResoponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -46,6 +50,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
+				wantResponseBody:   errResoponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -61,6 +66,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
+				wantResponseBody:   errResoponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -76,6 +82,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
+				wantResponseBody:   errResoponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -91,6 +98,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
+				wantResponseBody:   errResoponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -106,6 +114,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
+				wantResponseBody:   errResoponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -121,6 +130,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
+				wantResponseBody:   errResoponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -136,6 +146,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
+				wantResponseBody:   errResoponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -150,6 +161,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Path: "/root/pwd",
 				},
 				wantResponseStatus: http.StatusBadRequest,
+				wantResponseBody:   errResoponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -178,6 +190,11 @@ func TestUploadFileInitialise(t *testing.T) {
 			response := httptest.NewRecorder()
 			fileServer.ServeHTTP(response, request)
 			testHttpStatus(t, test.uploadInitReqBody, response.Code, test.wantResponseStatus)
+			var gotErrorBody filetransfer.ErrorBody
+			_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
+			if response.Code != http.StatusOK {
+				assertStructEquals(t, gotErrorBody, test.wantResponseBody)
+			}
 		}
 	})
 
@@ -199,7 +216,7 @@ func TestUploadFileInitialise(t *testing.T) {
 		request := newGetRequest(url)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusForbidden)
+		assertIntEquals(t, response.Code, http.StatusNotFound)
 	})
 
 	t.Run("get task id when correctly use method", func(t *testing.T) {
@@ -255,7 +272,7 @@ func TestUploadFile(t *testing.T) {
 		request := newGetRequest(url)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusForbidden)
+		assertIntEquals(t, response.Code, http.StatusNotFound)
 	})
 
 	t.Run("can not find task id in system", func(t *testing.T) {
