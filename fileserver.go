@@ -114,13 +114,6 @@ func (fs *FileServerController) handleUpload(taskId string, reader io.Reader) er
 	return nil
 }
 
-func writeStructToResponse(w http.ResponseWriter, object interface{}) {
-	err := json.NewEncoder(w).Encode(object)
-	if err != nil {
-		log.Printf("problem encode struct %+v to json. err: %v", object, err)
-	}
-}
-
 type DataAdapter interface {
 	IsTaskExist(taskId string) bool
 	GetUploadChannel(taskId string) (WriteCloseRollback, error)
