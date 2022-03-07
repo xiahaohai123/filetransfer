@@ -11,14 +11,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"summersea.top/filetransfer"
 	"testing"
 )
 
 const correctJson = `{"resource":{"address":"summersea1.top","port":22,"account":{"name":"ccc","password":"pwd"}},"path":"/root","filename":"test.txt"}`
+const initUploadUrl = "/file/upload/initialization"
 const uploadUrl = "/file/upload"
+const initDownloadUrl = "/file/download/initialization"
 const downloadUrl = "/file/download"
+
+const filenamePrefix = "attachment; filename="
 
 type initTestCase struct {
 	requestBody        interface{}
@@ -27,7 +32,7 @@ type initTestCase struct {
 }
 
 func TestUploadFileInitialise(t *testing.T) {
-	url := "/file/upload/initialization"
+	url := initUploadUrl
 	fileServer := filetransfer.NewFileServer(&StubAdapter{})
 
 	t.Run("return status when input some param", func(t *testing.T) {
@@ -256,7 +261,7 @@ func (s *StubAdapter) GetUploadChannel(taskId string) (filetransfer.WriteCloseRo
 	return nil, nil
 }
 
-func (s *StubAdapter) SaveUploadData(taskId string, uploadData filetransfer.UploadData) {
+func (s *StubAdapter) SaveUploadData(taskId string, _ filetransfer.UploadData) {
 	s.uploadTaskId = taskId
 }
 
@@ -305,33 +310,8 @@ func TestUploadFile(t *testing.T) {
 	})
 }
 
-func TestUploadByIntegration(t *testing.T) {
-	urlInit := "/file/upload/initialization"
-	urlUpload := "/file/upload"
-	dstFilename := createRandomFilename("tempFile", ".txt")
-	fileServer := filetransfer.NewFileServer(&StubAdapter{filename: dstFilename})
-	request := newPostRequestReader(urlInit, strings.NewReader(correctJson))
-	response := httptest.NewRecorder()
-	fileServer.ServeHTTP(response, request)
-	assertIntEquals(t, response.Code, http.StatusOK)
-	okBody := extractOkBody(response.Body)
-	taskId := okBody.Data["taskId"]
-	uploadUrl := fmt.Sprintf("%s?taskId=%s", urlUpload, taskId)
-
-	contentFilename, deleteContentFile := createTempFileWithContent(t)
-	defer deleteContentFile()
-	contentFile, _ := os.Open(contentFilename)
-	defer contentFile.Close()
-	uploadReq := newPostRequestReader(uploadUrl, contentFile)
-	uploadResponse := httptest.NewRecorder()
-	fileServer.ServeHTTP(uploadResponse, uploadReq)
-	assertIntEquals(t, uploadResponse.Code, http.StatusNoContent)
-	assertFileContentEquals(t, contentFilename, dstFilename)
-	_ = os.Remove(dstFilename)
-}
-
 func TestDownloadFileInit(t *testing.T) {
-	url := "/file/download/initialization"
+	url := initDownloadUrl
 	fileServer := filetransfer.NewFileServer(&StubAdapter{})
 	t.Run("test bad request", func(t *testing.T) {
 		errResponseBody := getInvalidErrBody()
@@ -475,7 +455,7 @@ func TestDownloadFile(t *testing.T) {
 	fileServer.ServeHTTP(response, request)
 	assertIntEquals(t, response.Code, http.StatusOK)
 	contentDisposition := response.Header().Get("Content-Disposition")
-	filenamePrefix := "attachment; filename="
+
 	if !str.StartsWith(contentDisposition, filenamePrefix) {
 		t.Errorf("got uncorrect Content-Disposition")
 	}
@@ -483,6 +463,68 @@ func TestDownloadFile(t *testing.T) {
 	assertDirectlyEqual(t, gotFilename, contentFilename)
 	downloadFilename := "download-" + gotFilename
 	downloadFile(t, downloadFilename, response.Body)
+	assertFileContentEquals(t, contentFilename, gotFilename)
+	_ = os.Remove(downloadFilename)
+}
+
+func TestUploadByIntegration(t *testing.T) {
+	urlInit := initUploadUrl
+	urlUpload := uploadUrl
+	dstFilename := createRandomFilename("tempFile", ".txt")
+	fileServer := filetransfer.NewFileServer(&StubAdapter{filename: dstFilename})
+	request := newPostRequestReader(urlInit, strings.NewReader(correctJson))
+	response := httptest.NewRecorder()
+	fileServer.ServeHTTP(response, request)
+	assertIntEquals(t, response.Code, http.StatusOK)
+	okBody := extractOkBody(response.Body)
+	taskId := okBody.Data["taskId"]
+	uploadUrl := fmt.Sprintf("%s?taskId=%s", urlUpload, taskId)
+
+	contentFilename, deleteContentFile := createTempFileWithContent(t)
+	defer deleteContentFile()
+	contentFile, _ := os.Open(contentFilename)
+	defer contentFile.Close()
+	uploadReq := newPostRequestReader(uploadUrl, contentFile)
+	uploadResponse := httptest.NewRecorder()
+	fileServer.ServeHTTP(uploadResponse, uploadReq)
+	assertIntEquals(t, uploadResponse.Code, http.StatusNoContent)
+	assertFileContentEquals(t, contentFilename, dstFilename)
+	_ = os.Remove(dstFilename)
+}
+
+func TestDownloadFileIntegration(t *testing.T) {
+	contentFilename, deleteFile := createTempFileWithContent(t)
+	filePathInServer, _ := filepath.Abs(contentFilename)
+	defer deleteFile()
+	fileServer := filetransfer.NewFileServer(&StubAdapter{})
+	requestObject := filetransfer.DownloadInitReqBody{
+		Resource: filetransfer.Resource{
+			Address: "addr",
+			Port:    22,
+			Account: filetransfer.Account{
+				Name:     "test",
+				Password: "pwd",
+			},
+		},
+		Path: filePathInServer,
+	}
+	requestInit := newPostReqBody(t, initDownloadUrl, requestObject)
+	responseInit := httptest.NewRecorder()
+	fileServer.ServeHTTP(responseInit, requestInit)
+
+	assertIntEquals(t, responseInit.Code, http.StatusOK)
+	okBody := extractOkBody(responseInit.Body)
+	taskId := okBody.Data["taskId"]
+
+	requestUrl := fmt.Sprintf("%s?taskId=%s", downloadUrl, taskId)
+	requestDownload := newGetRequest(requestUrl)
+	responseDownload := httptest.NewRecorder()
+	fileServer.ServeHTTP(responseDownload, requestDownload)
+
+	gotFilename := responseDownload.Header().Get("Content-Disposition")[len(filenamePrefix):]
+	assertDirectlyEqual(t, gotFilename, contentFilename)
+	downloadFilename := "download-" + gotFilename
+	downloadFile(t, downloadFilename, responseDownload.Body)
 	assertFileContentEquals(t, contentFilename, gotFilename)
 	_ = os.Remove(downloadFilename)
 }
