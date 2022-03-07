@@ -26,11 +26,11 @@ func (f *FileTranDataAdapter) SaveUploadData(taskId string, uploadData UploadDat
 }
 
 func (f *FileTranDataAdapter) IsUploadTaskExist(taskId string) bool {
-	return f.dataStore.IsTaskExist(taskId)
+	return f.dataStore.IsUploadTaskExist(taskId)
 }
 
 func (f *FileTranDataAdapter) GetUploadChannel(taskId string) (WriteCloseRollback, error) {
-	uploadData := f.dataStore.GetUploadDataWithRm(taskId)
+	uploadData := f.dataStore.GetUploadDataRemove(taskId)
 	return f.createSftpChannel(*uploadData)
 }
 
@@ -81,8 +81,11 @@ func (f *FileTranDataAdapter) createSftpChannel(data UploadData) (WriteCloseRoll
 
 type DataStore interface {
 	SaveUploadData(taskId string, data UploadData)
-	GetUploadDataWithRm(taskId string) *UploadData
-	IsTaskExist(taskId string) bool
+	GetUploadDataRemove(taskId string) *UploadData
+	IsUploadTaskExist(taskId string) bool
+	SaveDownloadData(taskId string, data DownloadData)
+	GetDownloadDataRemove(taskId string) *DownloadData
+	IsDownloadTaskExist(taskId string) bool
 }
 
 type WriteCloseRollback interface {

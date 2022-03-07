@@ -18,7 +18,7 @@ func TestMemoryStore_GetUploadData(t *testing.T) {
 		store.SaveUploadData(taskId, filetransfer.UploadData{})
 		data := store.GetUploadDataWithRm(taskId)
 		assertNotNil(t, data)
-		assertFalse(t, store.IsTaskExist(taskId))
+		assertFalse(t, store.IsUploadTaskExist(taskId))
 	})
 }
 
@@ -27,15 +27,15 @@ func TestMemoryStore_IsTaskExist(t *testing.T) {
 		store := filetransfer.NewMemoryStore()
 		taskId := filetransfer.NewTaskId()
 		store.SaveUploadData(taskId, filetransfer.UploadData{})
-		assertTrue(t, store.IsTaskExist(taskId))
+		assertTrue(t, store.IsUploadTaskExist(taskId))
 	})
 
 	t.Run("test non exist data", func(t *testing.T) {
 		store := filetransfer.NewMemoryStore()
-		assertFalse(t, store.IsTaskExist(filetransfer.NewTaskId()))
+		assertFalse(t, store.IsUploadTaskExist(filetransfer.NewTaskId()))
 
 		store.SaveUploadData("", filetransfer.UploadData{})
-		assertFalse(t, store.IsTaskExist(""))
+		assertFalse(t, store.IsUploadTaskExist(""))
 	})
 }
 

@@ -18,7 +18,7 @@ func (m *MemoryStore) SaveUploadData(taskId string, data UploadData) {
 }
 
 func (m *MemoryStore) GetUploadDataWithRm(taskId string) *UploadData {
-	if !m.IsTaskExist(taskId) {
+	if !m.IsUploadTaskExist(taskId) {
 		return nil
 	}
 	data := m.storeData[taskId]
@@ -26,9 +26,25 @@ func (m *MemoryStore) GetUploadDataWithRm(taskId string) *UploadData {
 	return &data
 }
 
-func (m *MemoryStore) IsTaskExist(taskId string) bool {
+func (m *MemoryStore) IsUploadTaskExist(taskId string) bool {
 	_, exist := m.storeData[taskId]
 	return exist
+}
+
+func (m *MemoryStore) GetUploadDataRemove(taskId string) *UploadData {
+	panic("implement me")
+}
+
+func (m *MemoryStore) SaveDownloadData(taskId string, data DownloadData) {
+	panic("implement me")
+}
+
+func (m *MemoryStore) GetDownloadDataRemove(taskId string) *DownloadData {
+	panic("implement me")
+}
+
+func (m *MemoryStore) IsDownloadTaskExist(taskId string) bool {
+	panic("implement me")
 }
 
 func (m *MemoryStore) removeTaskId(taskId string) {
