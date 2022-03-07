@@ -1,5 +1,10 @@
 package filetransfer
 
+const ErrorCodeInvalidParam = "InvalidParam"
+const ErrorContentInvalidParam = "Invalid Parameter"
+const ErrorCodeResourceNotFound = "ResourceNotFound"
+const ErrorContentTaskNotFound = "The task id is not found"
+
 type Resource struct {
 	Address string  `json:"address"`
 	Port    int     `json:"port"`
@@ -24,4 +29,21 @@ type ErrorBody struct {
 type ErrorContent struct {
 	Message string `json:"message"`
 	Code    string `json:"code"`
+}
+
+func getTaskNotFoundErr() ErrorBody {
+	return NewErrorBody(ErrorCodeResourceNotFound, ErrorContentTaskNotFound)
+}
+
+func getInvalidParamErr() ErrorBody {
+	return NewErrorBody(ErrorCodeInvalidParam, ErrorContentInvalidParam)
+}
+
+func NewErrorBody(code, message string) ErrorBody {
+	return ErrorBody{
+		Error: ErrorContent{
+			Message: message,
+			Code:    code,
+		},
+	}
 }

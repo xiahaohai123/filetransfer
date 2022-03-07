@@ -25,7 +25,7 @@ func TestUploadFileInitialise(t *testing.T) {
 
 	t.Run("return status when input some param", func(t *testing.T) {
 		errResoponseBody := filetransfer.ErrorBody{Error: filetransfer.ErrorContent{
-			Message: filetransfer.ErrorContentInvalidInput, Code: filetransfer.ErrorCodeInvalidInput}}
+			Message: filetransfer.ErrorContentInvalidParam, Code: filetransfer.ErrorCodeInvalidParam}}
 		testTables := []struct {
 			uploadInitReqBody  filetransfer.UploadInitReqBody
 			wantResponseStatus int
@@ -282,12 +282,11 @@ func TestUploadFile(t *testing.T) {
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusBadRequest)
-		assertStringEquals(t, response.Header().Get("Content-Type"), filetransfer.ContentTypeJsonValue)
 
 		wantErrorBody := filetransfer.ErrorBody{
 			Error: filetransfer.ErrorContent{
-				Message: "The task id is not found.",
-				Code:    "ResourceNotFound",
+				Message: filetransfer.ErrorContentTaskNotFound,
+				Code:    filetransfer.ErrorCodeResourceNotFound,
 			},
 		}
 		var gotErrorBody filetransfer.ErrorBody

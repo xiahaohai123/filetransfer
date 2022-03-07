@@ -45,6 +45,7 @@ func TestFileTranDataAdapter_IsTaskExist(t *testing.T) {
 	assertIntEquals(t, store.existCalls, 2)
 }
 
+// 该测试需要配置外部sftp环境以测试，没有环境时可以无法通过
 func TestFileTranDataAdapter_GetUploadData(t *testing.T) {
 	existedTaskId := filetransfer.NewTaskId()
 	store := &StubDataStore{taskId: existedTaskId, uploadData: filetransfer.UploadData{

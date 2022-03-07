@@ -9,17 +9,11 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"summersea.top/filetransfer/util"
 )
 
 func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }
-
-const ContentTypeJsonValue = "application/json;charset=UTF-8"
-
-const ErrorCodeInvalidInput = "InvalidParam"
-const ErrorContentInvalidInput = "InvalidParam"
 
 type FileServerController struct {
 	dataAdapter DataAdapter
@@ -29,9 +23,7 @@ func NewFileServer(adapter DataAdapter) *gin.Engine {
 	fileServer := &FileServerController{}
 	r := gin.Default()
 	r.POST("/file/upload/initialization", fileServer.uploadInitHandler)
-	r.POST("/file/upload", func(context *gin.Context) {
-		fileServer.uploadHandler(context.Writer, context.Request)
-	})
+	r.POST("/file/upload", fileServer.uploadHandler)
 	fileServer.dataAdapter = adapter
 	return r
 }
@@ -39,49 +31,28 @@ func NewFileServer(adapter DataAdapter) *gin.Engine {
 func (fs *FileServerController) uploadInitHandler(ctx *gin.Context) {
 	var uploadInitBody UploadInitReqBody
 	if err := ctx.ShouldBindJSON(&uploadInitBody); err != nil {
-		ctx.JSON(http.StatusBadRequest,
-			gin.H{"error": ErrorContent{Message: ErrorContentInvalidInput, Code: ErrorCodeInvalidInput}})
+		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
 		return
 	}
 	if !isUploadInitReqBodyValid(uploadInitBody) {
-		ctx.JSON(http.StatusBadRequest,
-			gin.H{"error": ErrorContent{Message: ErrorContentInvalidInput, Code: ErrorCodeInvalidInput}})
+		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
 		return
 	}
 	taskId := fs.handleUploadInit(UploadData(uploadInitBody))
 	ctx.String(http.StatusOK, taskId)
 }
 
-//func (fs *FileServerController) uploadHandlerGin(ctx *gin.Context) {
-//
-//}
-
-func (fs *FileServerController) uploadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
-
-	param := util.ExtractUrlParam(r.URL.String())
-	taskId := param["taskId"]
-
+func (fs *FileServerController) uploadHandler(ctx *gin.Context) {
+	taskId := ctx.Query("taskId")
 	if !fs.dataAdapter.IsTaskExist(taskId) {
-		taskNotFoundBody := ErrorBody{
-			Error: ErrorContent{
-				Message: "The task id is not found.",
-				Code:    "ResourceNotFound",
-			},
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		w.Header().Set("Content-type", ContentTypeJsonValue)
-		writeStructToResponse(w, taskNotFoundBody)
+		ctx.JSON(http.StatusBadRequest, getTaskNotFoundErr())
 	} else {
-		err := fs.handleUpload(taskId, r.Body)
+		err := fs.handleUpload(taskId, ctx.Request.Body)
 		if err != nil {
 			log.Printf("problem upload file: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			ctx.Status(http.StatusInternalServerError)
 		} else {
-			w.WriteHeader(http.StatusNoContent)
+			ctx.Status(http.StatusNoContent)
 		}
 	}
 }
@@ -147,13 +118,6 @@ func writeStructToResponse(w http.ResponseWriter, object interface{}) {
 	err := json.NewEncoder(w).Encode(object)
 	if err != nil {
 		log.Printf("problem encode struct %+v to json. err: %v", object, err)
-	}
-}
-
-func writeStringToResponse(w http.ResponseWriter, data string) {
-	_, err := w.Write([]byte(data))
-	if err != nil {
-		log.Printf("problem write data to response")
 	}
 }
 
