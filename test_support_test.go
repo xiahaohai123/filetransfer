@@ -30,9 +30,9 @@ func assertContent(t *testing.T, content string) {
 	}
 }
 
-func assertDirectlyEqual(t *testing.T, got, want interface{}) {
+func assertStringEqual(t *testing.T, got, want interface{}) {
 	t.Helper()
 	if got != want {
-		t.Errorf("want %d but got %d", want, got)
+		t.Errorf("want %s but got %s", want, got)
 	}
 }

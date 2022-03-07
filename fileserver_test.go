@@ -240,6 +240,7 @@ func TestUploadFileInitialise(t *testing.T) {
 type StubAdapter struct {
 	uploadTaskId   string
 	filename       string
+	path           string
 	downloadTaskId string
 }
 
@@ -275,14 +276,15 @@ func (s *StubAdapter) IsDownloadTaskExist(taskId string) bool {
 
 func (s *StubAdapter) GetDownloadChannelFilename(taskId string) (io.ReadCloser, string, error) {
 	if s.downloadTaskId == taskId {
-		file, _ := os.OpenFile(s.filename, os.O_RDWR, 0666)
-		return file, s.filename, nil
+		file, _ := os.OpenFile(s.path, os.O_RDWR, 0666)
+		return file, filepath.Base(s.path), nil
 	}
 	return nil, "", nil
 }
 
 func (s *StubAdapter) SaveDownloadData(taskId string, downloadData filetransfer.DownloadData) {
 	s.downloadTaskId = taskId
+	s.path = downloadData.Path
 }
 
 func TestUploadFile(t *testing.T) {
@@ -452,7 +454,7 @@ func TestDownloadFile(t *testing.T) {
 	taskId := uuid.NewV4().String()
 	contentFilename, deleteContentFile := createTempFileWithContent(t)
 	defer deleteContentFile()
-	fileServer := filetransfer.NewFileServer(&StubAdapter{downloadTaskId: taskId, filename: contentFilename})
+	fileServer := filetransfer.NewFileServer(&StubAdapter{downloadTaskId: taskId, path: contentFilename})
 	requestUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
 	request := newGetRequest(requestUrl)
 	response := httptest.NewRecorder()
@@ -464,7 +466,8 @@ func TestDownloadFile(t *testing.T) {
 		t.Errorf("got uncorrect Content-Disposition")
 	}
 	gotFilename := contentDisposition[len(filenamePrefix):]
-	assertDirectlyEqual(t, gotFilename, contentFilename)
+	assertIntEquals(t, response.Code, http.StatusOK)
+	assertStringEqual(t, gotFilename, contentFilename)
 	downloadFilename := "download-" + gotFilename
 	downloadFile(t, downloadFilename, response.Body)
 	assertFileContentEquals(t, contentFilename, gotFilename)
@@ -526,7 +529,8 @@ func TestDownloadFileIntegration(t *testing.T) {
 	fileServer.ServeHTTP(responseDownload, requestDownload)
 
 	gotFilename := responseDownload.Header().Get("Content-Disposition")[len(filenamePrefix):]
-	assertDirectlyEqual(t, gotFilename, contentFilename)
+	assertIntEquals(t, responseDownload.Code, http.StatusOK)
+	assertStringEqual(t, gotFilename, contentFilename)
 	downloadFilename := "download-" + gotFilename
 	downloadFile(t, downloadFilename, responseDownload.Body)
 	assertFileContentEquals(t, contentFilename, gotFilename)

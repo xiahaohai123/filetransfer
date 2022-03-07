@@ -43,6 +43,32 @@ func (fs *FileServerController) uploadInitHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, OkBody{Data: Data{"taskId": taskId}})
 }
 
+func (fs *FileServerController) handleUploadInit(uploadData UploadData) string {
+	taskId := NewTaskId()
+	fs.dataAdapter.SaveUploadData(taskId, uploadData)
+	return taskId
+}
+
+func (fs *FileServerController) downloadInitHandler(ctx *gin.Context) {
+	var downloadInitBody DownloadInitReqBody
+	if err := ctx.ShouldBindJSON(&downloadInitBody); err != nil {
+		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
+		return
+	}
+	if !fs.isDownloadInitReqBodyValid(downloadInitBody) {
+		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
+		return
+	}
+	taskId := fs.handleDownloadInit(DownloadData(downloadInitBody))
+	ctx.JSON(http.StatusOK, OkBody{Data: Data{"taskId": taskId}})
+}
+
+func (fs *FileServerController) handleDownloadInit(downloadData DownloadData) string {
+	taskId := NewTaskId()
+	fs.dataAdapter.SaveDownloadData(taskId, downloadData)
+	return taskId
+}
+
 func (fs *FileServerController) uploadHandler(ctx *gin.Context) {
 	taskId := ctx.Query("taskId")
 	if !fs.dataAdapter.IsUploadTaskExist(taskId) {
@@ -58,17 +84,17 @@ func (fs *FileServerController) uploadHandler(ctx *gin.Context) {
 	}
 }
 
-func (fs *FileServerController) downloadInitHandler(ctx *gin.Context) {
-	var downloadInitBody DownloadInitReqBody
-	if err := ctx.ShouldBindJSON(&downloadInitBody); err != nil {
-		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
-		return
+func (fs *FileServerController) handleUpload(taskId string, reader io.Reader) error {
+	writeCloser, err := fs.dataAdapter.GetUploadChannel(taskId)
+	if err != nil {
+		return fmt.Errorf("problem create upload channel %v", err)
 	}
-	if !fs.isDownloadInitReqBodyValid(downloadInitBody) {
-		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
-		return
+	defer closeWithErrLog(writeCloser)
+	_, err = io.Copy(writeCloser, reader)
+	if err != nil {
+		return fmt.Errorf("problem transfer file: %v", err)
 	}
-	ctx.JSON(http.StatusOK, OkBody{Data: Data{"taskId": NewTaskId()}})
+	return nil
 }
 
 // 下载API的处理器，负责view部分的业务
@@ -88,10 +114,18 @@ func (fs *FileServerController) downloadHandler(ctx *gin.Context) {
 	}
 }
 
-func (fs *FileServerController) handleUploadInit(uploadData UploadData) string {
-	taskId := NewTaskId()
-	fs.dataAdapter.SaveUploadData(taskId, uploadData)
-	return taskId
+func (fs *FileServerController) handleDownload(taskId string, writer io.Writer, setFilename func(value string)) error {
+	readCloser, filename, err := fs.dataAdapter.GetDownloadChannelFilename(taskId)
+	if err != nil {
+		return fmt.Errorf("problem create download channel %v", err)
+	}
+	setFilename(filename)
+	defer closeWithErrLog(readCloser)
+	_, err = io.Copy(writer, readCloser)
+	if err != nil {
+		return fmt.Errorf("problem transfer file: %v", err)
+	}
+	return nil
 }
 
 func (fs *FileServerController) isUploadInitReqBodyValid(body UploadInitReqBody) bool {
@@ -139,33 +173,6 @@ func (fs *FileServerController) isResourceReqBodyValid(resource Resource) bool {
 		return false
 	}
 	return true
-}
-
-func (fs *FileServerController) handleUpload(taskId string, reader io.Reader) error {
-	writeCloser, err := fs.dataAdapter.GetUploadChannel(taskId)
-	if err != nil {
-		return fmt.Errorf("problem create upload channel %v", err)
-	}
-	defer closeWithErrLog(writeCloser)
-	_, err = io.Copy(writeCloser, reader)
-	if err != nil {
-		return fmt.Errorf("problem transfer file: %v", err)
-	}
-	return nil
-}
-
-func (fs *FileServerController) handleDownload(taskId string, writer io.Writer, setFilename func(value string)) error {
-	readCloser, filename, err := fs.dataAdapter.GetDownloadChannelFilename(taskId)
-	if err != nil {
-		return fmt.Errorf("problem create download channel %v", err)
-	}
-	setFilename(filename)
-	defer closeWithErrLog(readCloser)
-	_, err = io.Copy(writer, readCloser)
-	if err != nil {
-		return fmt.Errorf("problem transfer file: %v", err)
-	}
-	return nil
 }
 
 type DataAdapter interface {
