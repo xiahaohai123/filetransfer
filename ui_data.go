@@ -22,6 +22,12 @@ type UploadInitReqBody struct {
 	Filename string   `json:"filename"`
 }
 
+type OkBody struct {
+	Data Data `json:"data"`
+}
+
+type Data map[string]interface{}
+
 type ErrorBody struct {
 	Error ErrorContent `json:"error"`
 }

@@ -24,8 +24,9 @@ func TestUploadFileInitialise(t *testing.T) {
 	fileServer := filetransfer.NewFileServer(&StubStore{})
 
 	t.Run("return status when input some param", func(t *testing.T) {
-		errResoponseBody := filetransfer.ErrorBody{Error: filetransfer.ErrorContent{
+		errResponseBody := filetransfer.ErrorBody{Error: filetransfer.ErrorContent{
 			Message: filetransfer.ErrorContentInvalidParam, Code: filetransfer.ErrorCodeInvalidParam}}
+		okBody := filetransfer.OkBody{Data: filetransfer.Data{"taskId": "ignore"}}
 		testTables := []struct {
 			uploadInitReqBody  filetransfer.UploadInitReqBody
 			wantResponseStatus int
@@ -34,7 +35,7 @@ func TestUploadFileInitialise(t *testing.T) {
 			{
 				uploadInitReqBody:  filetransfer.UploadInitReqBody{},
 				wantResponseStatus: http.StatusBadRequest,
-				wantResponseBody:   errResoponseBody,
+				wantResponseBody:   errResponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -50,7 +51,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
-				wantResponseBody:   errResoponseBody,
+				wantResponseBody:   errResponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -66,7 +67,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
-				wantResponseBody:   errResoponseBody,
+				wantResponseBody:   errResponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -82,7 +83,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
-				wantResponseBody:   errResoponseBody,
+				wantResponseBody:   errResponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -98,7 +99,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
-				wantResponseBody:   errResoponseBody,
+				wantResponseBody:   errResponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -114,7 +115,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
-				wantResponseBody:   errResoponseBody,
+				wantResponseBody:   errResponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -130,7 +131,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
-				wantResponseBody:   errResoponseBody,
+				wantResponseBody:   errResponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -146,7 +147,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusBadRequest,
-				wantResponseBody:   errResoponseBody,
+				wantResponseBody:   errResponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -161,7 +162,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Path: "/root/pwd",
 				},
 				wantResponseStatus: http.StatusBadRequest,
-				wantResponseBody:   errResoponseBody,
+				wantResponseBody:   errResponseBody,
 			},
 			{
 				uploadInitReqBody: filetransfer.UploadInitReqBody{
@@ -177,6 +178,7 @@ func TestUploadFileInitialise(t *testing.T) {
 					Filename: "testFile.txt",
 				},
 				wantResponseStatus: http.StatusOK,
+				wantResponseBody:   okBody,
 			},
 		}
 
@@ -190,10 +192,14 @@ func TestUploadFileInitialise(t *testing.T) {
 			response := httptest.NewRecorder()
 			fileServer.ServeHTTP(response, request)
 			testHttpStatus(t, test.uploadInitReqBody, response.Code, test.wantResponseStatus)
-			var gotErrorBody filetransfer.ErrorBody
-			_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
 			if response.Code != http.StatusOK {
+				var gotErrorBody filetransfer.ErrorBody
+				_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
 				assertStructEquals(t, gotErrorBody, test.wantResponseBody)
+			} else {
+				okBody := extractOkBody(response.Body)
+				_, exist := okBody.Data["taskId"]
+				assertTrue(t, exist)
 			}
 		}
 	})
@@ -321,7 +327,8 @@ func TestUploadByIntegration(t *testing.T) {
 	response := httptest.NewRecorder()
 	fileServer.ServeHTTP(response, request)
 	assertIntEquals(t, response.Code, http.StatusOK)
-	taskId := readLineResponse(response.Body)
+	okBody := extractOkBody(response.Body)
+	taskId := okBody.Data["taskId"]
 	uploadUrl := fmt.Sprintf("%s?taskId=%s", urlUpload, taskId)
 
 	contentFilename, deleteContentFile := createTempFileWithContent(t)
@@ -443,4 +450,10 @@ func readLineResponse(reader io.Reader) string {
 	sc := bufio.NewScanner(reader)
 	sc.Scan()
 	return sc.Text()
+}
+
+func extractOkBody(reader io.Reader) filetransfer.OkBody {
+	var okBody filetransfer.OkBody
+	_ = json.NewDecoder(reader).Decode(&okBody)
+	return okBody
 }

@@ -39,7 +39,7 @@ func (fs *FileServerController) uploadInitHandler(ctx *gin.Context) {
 		return
 	}
 	taskId := fs.handleUploadInit(UploadData(uploadInitBody))
-	ctx.String(http.StatusOK, taskId)
+	ctx.JSON(http.StatusOK, OkBody{Data: Data{"taskId": taskId}})
 }
 
 func (fs *FileServerController) uploadHandler(ctx *gin.Context) {
