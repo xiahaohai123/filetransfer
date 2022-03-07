@@ -22,6 +22,11 @@ type UploadInitReqBody struct {
 	Filename string   `json:"filename"`
 }
 
+type DownloadInitReqBody struct {
+	Resource Resource `json:"resource"`
+	Path     string   `json:"path"`
+}
+
 type OkBody struct {
 	Data Data `json:"data"`
 }

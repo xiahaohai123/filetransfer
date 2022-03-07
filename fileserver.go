@@ -24,6 +24,7 @@ func NewFileServer(adapter DataAdapter) *gin.Engine {
 	r := gin.Default()
 	r.POST("/file/upload/initialization", fileServer.uploadInitHandler)
 	r.POST("/file/upload", fileServer.uploadHandler)
+	r.POST("/file/download/initialization", fileServer.downloadInitHandler)
 	fileServer.dataAdapter = adapter
 	return r
 }
@@ -57,6 +58,19 @@ func (fs *FileServerController) uploadHandler(ctx *gin.Context) {
 	}
 }
 
+func (fs *FileServerController) downloadInitHandler(ctx *gin.Context) {
+	var downloadInitBody DownloadInitReqBody
+	if err := ctx.ShouldBindJSON(&downloadInitBody); err != nil {
+		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
+		return
+	}
+	if !isDownloadInitReqBodyValid(downloadInitBody) {
+		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
+		return
+	}
+	ctx.JSON(http.StatusOK, OkBody{Data: Data{"taskId": NewTaskId()}})
+}
+
 func (fs *FileServerController) handleUploadInit(uploadData UploadData) string {
 	taskId := NewTaskId()
 	fs.dataAdapter.SaveUploadData(taskId, uploadData)
@@ -84,7 +98,17 @@ func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
 	if body.Filename == "" || str.StartsWith(body.Filename, "/") {
 		return false
 	}
-	resource := body.Resource
+	return isResourceReqBodyValid(body.Resource)
+}
+
+func isDownloadInitReqBodyValid(body DownloadInitReqBody) bool {
+	if !str.StartsWith(body.Path, "/") || str.EndsWith(body.Path, "/") {
+		return false
+	}
+	return isResourceReqBodyValid(body.Resource)
+}
+
+func isResourceReqBodyValid(resource Resource) bool {
 	if resource.Port <= 0 || resource.Port > 65535 {
 		return false
 	}
