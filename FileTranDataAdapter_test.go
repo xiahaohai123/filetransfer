@@ -7,12 +7,15 @@ import (
 )
 
 type StubDataStore struct {
-	saveUploadCalls       int
-	uploadExistCalls      int
-	getUploadChannelCalls int
-	taskId                string
-	uploadData            filetransfer.UploadData
-	downloadData          filetransfer.DownloadData
+	saveUploadCalls         int
+	uploadExistCalls        int
+	getUploadChannelCalls   int
+	taskId                  string
+	saveDownloadCalls       int
+	downloadExistCalls      int
+	getDownloadChannelCalls int
+	uploadData              filetransfer.UploadData
+	downloadData            filetransfer.DownloadData
 }
 
 func (s *StubDataStore) SaveUploadData(taskId string, data filetransfer.UploadData) {
@@ -34,15 +37,21 @@ func (s *StubDataStore) IsUploadTaskExist(taskId string) bool {
 }
 
 func (s *StubDataStore) SaveDownloadData(taskId string, data filetransfer.DownloadData) {
-	panic("implement me")
+	s.saveDownloadCalls++
 }
 
 func (s *StubDataStore) GetDownloadDataRemove(taskId string) *filetransfer.DownloadData {
-	panic("implement me")
+	s.getDownloadChannelCalls++
+	if taskId == s.taskId {
+		s.taskId = ""
+		return &s.downloadData
+	}
+	return nil
 }
 
 func (s *StubDataStore) IsDownloadTaskExist(taskId string) bool {
-	panic("implement me")
+	s.downloadExistCalls++
+	return s.taskId == taskId
 }
 
 func TestFileTranDataAdapter_SaveUploadData(t *testing.T) {
@@ -92,32 +101,21 @@ func TestFileTranDataAdapter_GetUploadChannel(t *testing.T) {
 }
 
 func TestFileTranDataAdapter_SaveDownloadData(t *testing.T) {
+	store := &StubDataStore{}
+	adapter := filetransfer.NewFileTranDataAdapter(store)
+	adapter.SaveDownloadData(filetransfer.NewTaskId(), filetransfer.DownloadData{})
+	assertIntEquals(t, store.saveDownloadCalls, 1)
 }
 
-func assertTrue(t *testing.T, got bool) {
-	t.Helper()
-	if !got {
-		t.Errorf("want true but got false")
-	}
+func TestFileTranDataAdapter_IsDownloadTaskExist(t *testing.T) {
+	existedTaskId := filetransfer.NewTaskId()
+	missedTaskId := filetransfer.NewTaskId()
+	store := &StubDataStore{taskId: existedTaskId}
+	adapter := filetransfer.NewFileTranDataAdapter(store)
+	assertTrue(t, adapter.IsDownloadTaskExist(existedTaskId))
+	assertFalse(t, adapter.IsDownloadTaskExist(missedTaskId))
+	assertIntEquals(t, store.downloadExistCalls, 2)
 }
 
-func assertFalse(t *testing.T, got bool) {
-	t.Helper()
-	if got {
-		t.Errorf("want false but got true")
-	}
-}
-
-func assertNotNil(t *testing.T, got interface{}) {
-	t.Helper()
-	if got == nil {
-		t.Errorf("want not nil but got")
-	}
-}
-
-func assertNil(t *testing.T, got interface{}) {
-	t.Helper()
-	if got != nil {
-		t.Errorf("want nil but got other: %+v", got)
-	}
+func TestFileTranDataAdapter_GetDownloadChannelFilename(t *testing.T) {
 }

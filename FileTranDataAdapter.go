@@ -35,7 +35,7 @@ func (f *FileTranDataAdapter) GetUploadChannel(taskId string) (WriteCloseRollbac
 }
 
 func (f *FileTranDataAdapter) IsDownloadTaskExist(taskId string) bool {
-	panic("implement me")
+	return f.dataStore.IsDownloadTaskExist(taskId)
 }
 
 func (f *FileTranDataAdapter) GetDownloadChannelFilename(taskId string) (io.ReadCloser, string, error) {
@@ -43,7 +43,7 @@ func (f *FileTranDataAdapter) GetDownloadChannelFilename(taskId string) (io.Read
 }
 
 func (f *FileTranDataAdapter) SaveDownloadData(taskId string, downloadData DownloadData) {
-	panic("implement me")
+	f.dataStore.SaveDownloadData(taskId, downloadData)
 }
 
 func (f *FileTranDataAdapter) createSftpChannel(data UploadData) (WriteCloseRollback, error) {

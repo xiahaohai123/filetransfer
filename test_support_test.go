@@ -36,3 +36,31 @@ func assertStringEqual(t *testing.T, got, want interface{}) {
 		t.Errorf("want %s but got %s", want, got)
 	}
 }
+
+func assertTrue(t *testing.T, got bool) {
+	t.Helper()
+	if !got {
+		t.Errorf("want true but got false")
+	}
+}
+
+func assertFalse(t *testing.T, got bool) {
+	t.Helper()
+	if got {
+		t.Errorf("want false but got true")
+	}
+}
+
+func assertNotNil(t *testing.T, got interface{}) {
+	t.Helper()
+	if got == nil {
+		t.Errorf("want not nil but got")
+	}
+}
+
+func assertNil(t *testing.T, got interface{}) {
+	t.Helper()
+	if got != nil {
+		t.Errorf("want nil but got other: %+v", got)
+	}
+}
