@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"github.com/kirinlabs/utils/str"
 	uuid "github.com/satori/go.uuid"
 	"io"
 	"net/http"
@@ -259,20 +260,20 @@ func (s *StubAdapter) SaveUploadData(taskId string, uploadData filetransfer.Uplo
 	s.uploadTaskId = taskId
 }
 
-func (s *StubAdapter) IsDownloadTaskExist(taskId string) bool {
-	return s.downloadTaskId == taskId
-}
-
 func (s *StubAdapter) IsUploadTaskExist(taskId string) bool {
 	return s.uploadTaskId == taskId
 }
 
-func (s *StubAdapter) GetDownloadChannel(taskId string) (io.ReadCloser, error) {
-	if s.uploadTaskId == taskId {
-		file, _ := os.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, 0777)
-		return file, nil
+func (s *StubAdapter) IsDownloadTaskExist(taskId string) bool {
+	return s.downloadTaskId == taskId
+}
+
+func (s *StubAdapter) GetDownloadChannelFilename(taskId string) (io.ReadCloser, string, error) {
+	if s.downloadTaskId == taskId {
+		file, _ := os.OpenFile(s.filename, os.O_RDWR, 0666)
+		return file, s.filename, nil
 	}
-	return nil, nil
+	return nil, "", nil
 }
 
 func TestUploadFile(t *testing.T) {
@@ -462,21 +463,28 @@ func TestDownloadFileInit(t *testing.T) {
 }
 
 func TestDownloadFile(t *testing.T) {
-	//url := downloadUrl
-	//
-	//taskId := uuid.NewV4().String()
-	//contentFilename, deleteContentFile := createTempFileWithContent(t)
-	//defer deleteContentFile()
-	//fileServer := filetransfer.NewFileServer(&StubAdapter{uploadTaskId: taskId, filename: contentFilename})
-	//contentFile, _ := os.Open(contentFilename)
-	//defer contentFile.Close()
-	//uploadUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
-	//request := newPostRequestReader(uploadUrl, contentFile)
-	//response := httptest.NewRecorder()
-	//fileServer.ServeHTTP(response, request)
-	//assertIntEquals(t, response.Code, http.StatusNoContent)
-	//assertFileContentEquals(t, contentFilename, dstFilename)
-	//_ = os.Remove(dstFilename)
+	url := downloadUrl
+
+	taskId := uuid.NewV4().String()
+	contentFilename, deleteContentFile := createTempFileWithContent(t)
+	defer deleteContentFile()
+	fileServer := filetransfer.NewFileServer(&StubAdapter{downloadTaskId: taskId, filename: contentFilename})
+	requestUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
+	request := newGetRequest(requestUrl)
+	response := httptest.NewRecorder()
+	fileServer.ServeHTTP(response, request)
+	assertIntEquals(t, response.Code, http.StatusOK)
+	contentDisposition := response.Header().Get("Content-Disposition")
+	filenamePrefix := "attachment; filename="
+	if !str.StartsWith(contentDisposition, filenamePrefix) {
+		t.Errorf("got uncorrect Content-Disposition")
+	}
+	gotFilename := contentDisposition[len(filenamePrefix):]
+	assertDirectlyEqual(t, gotFilename, contentFilename)
+	downloadFilename := "download-" + gotFilename
+	downloadFile(t, downloadFilename, response.Body)
+	assertFileContentEquals(t, contentFilename, gotFilename)
+	_ = os.Remove(downloadFilename)
 }
 
 func TestTaskNotFound(t *testing.T) {
@@ -551,6 +559,24 @@ func fileMd5Hash(t *testing.T, filename string) string {
 	}
 	sum := hash.Sum(nil)
 	return fmt.Sprintf("%x", sum)
+}
+
+func downloadFile(t *testing.T, filename string, reader io.Reader) {
+	t.Helper()
+
+	tempFile, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0777)
+	if err != nil {
+		t.Fatalf("could not create file %v", err)
+	}
+	defer tempFile.Close()
+	buffer := make([]byte, 256)
+	for {
+		readLen, _ := reader.Read(buffer)
+		if readLen == 0 {
+			break
+		}
+		tempFile.Write(buffer[:readLen])
+	}
 }
 
 func createTempFileWithContent(t *testing.T) (string, func()) {

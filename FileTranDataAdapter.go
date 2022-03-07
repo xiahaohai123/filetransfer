@@ -36,7 +36,7 @@ func (f *FileTranDataAdapter) IsDownloadTaskExist(taskId string) bool {
 	panic("implement me")
 }
 
-func (f *FileTranDataAdapter) GetDownloadChannel(taskId string) (io.ReadCloser, error) {
+func (f *FileTranDataAdapter) GetDownloadChannelFilename(taskId string) (io.ReadCloser, string, error) {
 	panic("implement me")
 }
 

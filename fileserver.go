@@ -1,7 +1,6 @@
 package filetransfer
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/kirinlabs/utils/str"
@@ -36,7 +35,7 @@ func (fs *FileServerController) uploadInitHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
 		return
 	}
-	if !isUploadInitReqBodyValid(uploadInitBody) {
+	if !fs.isUploadInitReqBodyValid(uploadInitBody) {
 		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
 		return
 	}
@@ -65,17 +64,27 @@ func (fs *FileServerController) downloadInitHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
 		return
 	}
-	if !isDownloadInitReqBodyValid(downloadInitBody) {
+	if !fs.isDownloadInitReqBodyValid(downloadInitBody) {
 		ctx.JSON(http.StatusBadRequest, getInvalidParamErr())
 		return
 	}
 	ctx.JSON(http.StatusOK, OkBody{Data: Data{"taskId": NewTaskId()}})
 }
 
+// 下载API的处理器，负责view部分的业务
 func (fs *FileServerController) downloadHandler(ctx *gin.Context) {
 	taskId := ctx.Query("taskId")
+	setFilename := func(value string) {
+		ctx.Writer.Header().Set("Content-Disposition", "attachment; filename="+value)
+	}
 	if !fs.dataAdapter.IsDownloadTaskExist(taskId) {
 		ctx.JSON(http.StatusBadRequest, getTaskNotFoundErr())
+	} else {
+		err := fs.handleDownload(taskId, ctx.Writer, setFilename)
+		if err != nil {
+			log.Printf("problem download file: %v", err)
+			ctx.Status(http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -85,38 +94,24 @@ func (fs *FileServerController) handleUploadInit(uploadData UploadData) string {
 	return taskId
 }
 
-func (fs *FileServerController) extractBody(r *http.Request) (*UploadInitReqBody, error) {
-	var uploadInitBody UploadInitReqBody
-	if r.Body == nil {
-		err := fmt.Errorf("got nil request body")
-		return nil, err
-	}
-	err := json.NewDecoder(r.Body).Decode(&uploadInitBody)
-	if err != nil {
-		err = fmt.Errorf("problem decode request body: %v", err)
-		return nil, err
-	}
-	return &uploadInitBody, nil
-}
-
-func isUploadInitReqBodyValid(body UploadInitReqBody) bool {
+func (fs *FileServerController) isUploadInitReqBodyValid(body UploadInitReqBody) bool {
 	if !str.StartsWith(body.Path, "/") {
 		return false
 	}
 	if body.Filename == "" || str.StartsWith(body.Filename, "/") {
 		return false
 	}
-	return isResourceReqBodyValid(body.Resource)
+	return fs.isResourceReqBodyValid(body.Resource)
 }
 
-func isDownloadInitReqBodyValid(body DownloadInitReqBody) bool {
+func (fs *FileServerController) isDownloadInitReqBodyValid(body DownloadInitReqBody) bool {
 	if !str.StartsWith(body.Path, "/") || str.EndsWith(body.Path, "/") {
 		return false
 	}
-	return isResourceReqBodyValid(body.Resource)
+	return fs.isResourceReqBodyValid(body.Resource)
 }
 
-func isResourceReqBodyValid(resource Resource) bool {
+func (fs *FileServerController) isResourceReqBodyValid(resource Resource) bool {
 	if resource.Port <= 0 || resource.Port > 65535 {
 		return false
 	}
@@ -136,10 +131,24 @@ func isResourceReqBodyValid(resource Resource) bool {
 func (fs *FileServerController) handleUpload(taskId string, reader io.Reader) error {
 	writeCloser, err := fs.dataAdapter.GetUploadChannel(taskId)
 	if err != nil {
-		return fmt.Errorf("problem create channel %v", err)
+		return fmt.Errorf("problem create upload channel %v", err)
 	}
 	defer closeWithErrLog(writeCloser)
 	_, err = io.Copy(writeCloser, reader)
+	if err != nil {
+		return fmt.Errorf("problem transfer file: %v", err)
+	}
+	return nil
+}
+
+func (fs *FileServerController) handleDownload(taskId string, writer io.Writer, setFilename func(value string)) error {
+	readCloser, filename, err := fs.dataAdapter.GetDownloadChannelFilename(taskId)
+	if err != nil {
+		return fmt.Errorf("problem create download channel %v", err)
+	}
+	setFilename(filename)
+	defer closeWithErrLog(readCloser)
+	_, err = io.Copy(writer, readCloser)
 	if err != nil {
 		return fmt.Errorf("problem transfer file: %v", err)
 	}
@@ -151,7 +160,8 @@ type DataAdapter interface {
 	GetUploadChannel(taskId string) (WriteCloseRollback, error)
 	SaveUploadData(taskId string, uploadData UploadData)
 	IsDownloadTaskExist(taskId string) bool
-	GetDownloadChannel(taskId string) (io.ReadCloser, error)
+	// GetDownloadChannelFilename 获取下载通道，并获取下载的文件名
+	GetDownloadChannelFilename(taskId string) (io.ReadCloser, string, error)
 }
 
 func NewTaskId() string {

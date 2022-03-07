@@ -29,3 +29,10 @@ func assertContent(t *testing.T, content string) {
 		t.Errorf("want a content but got empty")
 	}
 }
+
+func assertDirectlyEqual(t *testing.T, got, want interface{}) {
+	t.Helper()
+	if got != want {
+		t.Errorf("want %d but got %d", want, got)
+	}
+}
