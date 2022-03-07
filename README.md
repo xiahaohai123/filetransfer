@@ -106,7 +106,19 @@ Response 204 NoContent
 
 POST /file/download/initialization
 
-- 请求头与请求体与**上传任务初始化**一致
+**请求头**
+
+|参数     |是否必选|类型|描述|
+|:-------:|:-----:|:-----:|:----:|
+|Content-Type|是|string|“application/json;charset=utf8” |
+
+**请求体**
+
+|参数     |是否必选|类型|描述|
+|:-------:|:-----:|:-----:|:----:|
+|resource|是|Object|目标资源信息|
+|path|是|string|传输路径，绝对路径，包括文件名|
+
 - 响应与**上传任务初始化**一致
 
 #### 下载文件
