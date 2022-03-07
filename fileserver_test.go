@@ -1,7 +1,6 @@
 package filetransfer_test
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
@@ -11,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"strings"
 	"summersea.top/filetransfer"
 	"testing"
@@ -222,7 +220,8 @@ func TestUploadFileInitialise(t *testing.T) {
 		fileServer.ServeHTTP(response, request)
 		assertIntEquals(t, response.Code, http.StatusOK)
 
-		taskId := readLineResponse(response.Body)
+		okBody := extractOkBody(response.Body)
+		taskId := okBody.Data["taskId"].(string)
 		if len(strings.Split(taskId, "-")) != 5 {
 			t.Errorf("want uuid but got other '%s'", taskId)
 		}
@@ -462,7 +461,7 @@ func TestDownloadFileInit(t *testing.T) {
 		assertIntEquals(t, response.Code, http.StatusOK)
 		okBody := extractOkBody(response.Body)
 		taskId := okBody.Data["taskId"].(string)
-		assertStringNotEmpty(t, taskId)
+		assertContent(t, taskId)
 	})
 }
 
@@ -490,31 +489,6 @@ func newPostReqBody(t *testing.T, url string, requestBody interface{}) *http.Req
 func newGetRequest(url string) *http.Request {
 	request, _ := http.NewRequest(http.MethodGet, url, nil)
 	return request
-}
-
-func assertIntEquals(t *testing.T, got, want int) {
-	t.Helper()
-	if got != want {
-		t.Errorf("want %d but got %d", want, got)
-	}
-}
-
-func assertStructEquals(t *testing.T, got, want interface{}) {
-	t.Helper()
-	if got == nil || want == nil {
-		t.Errorf("unexpted nil pointer")
-		return
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("want %+v but got %+v", want, got)
-	}
-}
-
-func assertContent(t *testing.T, content string) {
-	t.Helper()
-	if content == "" {
-		t.Errorf("want a content but got empty")
-	}
 }
 
 func assertFileContentEquals(t *testing.T, filename1, filename2 string) {
@@ -564,12 +538,6 @@ func createRandomFilename(pattern, suffix string) string {
 	return fmt.Sprintf("%s%s%s", pattern, uuid.NewV4().String(), suffix)
 }
 
-func readLineResponse(reader io.Reader) string {
-	sc := bufio.NewScanner(reader)
-	sc.Scan()
-	return sc.Text()
-}
-
 func extractOkBody(reader io.Reader) filetransfer.OkBody {
 	var okBody filetransfer.OkBody
 	_ = json.NewDecoder(reader).Decode(&okBody)
@@ -588,11 +556,4 @@ func getInvalidErrBody() filetransfer.ErrorBody {
 	errResponseBody := filetransfer.ErrorBody{Error: filetransfer.ErrorContent{
 		Message: filetransfer.ErrorContentInvalidParam, Code: filetransfer.ErrorCodeInvalidParam}}
 	return errResponseBody
-}
-
-func assertStringNotEmpty(t *testing.T, got string) {
-	t.Helper()
-	if got == "" {
-		t.Errorf("expected not empty string but got")
-	}
 }
