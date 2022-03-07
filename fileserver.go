@@ -105,10 +105,23 @@ func (fs *FileServerController) isUploadInitReqBodyValid(body UploadInitReqBody)
 }
 
 func (fs *FileServerController) isDownloadInitReqBodyValid(body DownloadInitReqBody) bool {
-	if !str.StartsWith(body.Path, "/") || str.EndsWith(body.Path, "/") {
+	if body.Path == "" || str.EndsWith(body.Path, "/") {
+		return false
+	}
+	if !fs.isValidPathInLinux(body.Path) && !fs.isValidPathInWindows(body.Path) {
 		return false
 	}
 	return fs.isResourceReqBodyValid(body.Resource)
+}
+
+func (fs *FileServerController) isValidPathInLinux(path string) bool {
+	return str.StartsWith(path, "/")
+}
+
+func (fs *FileServerController) isValidPathInWindows(path string) bool {
+	driveLetter := path[0]
+	sep := path[1:3]
+	return 64 < driveLetter && driveLetter < 91 && sep == ":\\"
 }
 
 func (fs *FileServerController) isResourceReqBodyValid(resource Resource) bool {
@@ -162,6 +175,7 @@ type DataAdapter interface {
 	IsDownloadTaskExist(taskId string) bool
 	// GetDownloadChannelFilename 获取下载通道，并获取下载的文件名
 	GetDownloadChannelFilename(taskId string) (io.ReadCloser, string, error)
+	SaveDownloadData(taskId string, downloadData DownloadData)
 }
 
 func NewTaskId() string {

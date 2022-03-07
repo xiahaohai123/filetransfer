@@ -281,6 +281,10 @@ func (s *StubAdapter) GetDownloadChannelFilename(taskId string) (io.ReadCloser, 
 	return nil, "", nil
 }
 
+func (s *StubAdapter) SaveDownloadData(taskId string, downloadData filetransfer.DownloadData) {
+	s.downloadTaskId = taskId
+}
+
 func TestUploadFile(t *testing.T) {
 	url := uploadUrl
 	fileServer := filetransfer.NewFileServer(&StubAdapter{uploadTaskId: uuid.NewV4().String()})

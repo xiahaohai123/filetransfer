@@ -11,6 +11,8 @@ import (
 
 type UploadData UploadInitReqBody
 
+type DownloadData DownloadInitReqBody
+
 type FileTranDataAdapter struct {
 	dataStore DataStore
 }
@@ -37,6 +39,10 @@ func (f *FileTranDataAdapter) IsDownloadTaskExist(taskId string) bool {
 }
 
 func (f *FileTranDataAdapter) GetDownloadChannelFilename(taskId string) (io.ReadCloser, string, error) {
+	panic("implement me")
+}
+
+func (f *FileTranDataAdapter) SaveDownloadData(taskId string, downloadData DownloadData) {
 	panic("implement me")
 }
 
