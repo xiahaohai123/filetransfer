@@ -18,9 +18,13 @@ func (s *StubDataStore) SaveUploadData(taskId string, data filetransfer.UploadDa
 	s.saveCalls++
 }
 
-func (s *StubDataStore) GetUploadData(taskId string) *filetransfer.UploadData {
+func (s *StubDataStore) GetUploadDataWithRm(taskId string) *filetransfer.UploadData {
 	s.getDataCalls++
-	return &s.uploadData
+	if taskId == s.taskId {
+		s.taskId = ""
+		return &s.uploadData
+	}
+	return nil
 }
 
 func (s *StubDataStore) IsTaskExist(taskId string) bool {
@@ -71,26 +75,27 @@ func TestFileTranDataAdapter_GetUploadData(t *testing.T) {
 		assertNil(t, channel.RollBack())
 		assertNil(t, channel.Close())
 	}
+	assertFalse(t, adapter.IsTaskExist(existedTaskId))
 }
 
 func assertTrue(t *testing.T, got bool) {
 	t.Helper()
 	if !got {
-		t.Errorf("want true bug got false")
+		t.Errorf("want true but got false")
 	}
 }
 
 func assertFalse(t *testing.T, got bool) {
 	t.Helper()
 	if got {
-		t.Errorf("want false bug got true")
+		t.Errorf("want false but got true")
 	}
 }
 
 func assertNotNil(t *testing.T, got interface{}) {
 	t.Helper()
 	if got == nil {
-		t.Errorf("want not nil bug got")
+		t.Errorf("want not nil but got")
 	}
 }
 

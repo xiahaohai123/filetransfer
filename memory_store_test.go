@@ -8,8 +8,17 @@ import (
 func TestMemoryStore_GetUploadData(t *testing.T) {
 	t.Run("test get non exist data", func(t *testing.T) {
 		store := filetransfer.NewMemoryStore()
-		data := store.GetUploadData(filetransfer.NewTaskId())
+		data := store.GetUploadDataWithRm(filetransfer.NewTaskId())
 		assertNilUploadData(t, data)
+	})
+
+	t.Run("test rm data", func(t *testing.T) {
+		store := filetransfer.NewMemoryStore()
+		taskId := filetransfer.NewTaskId()
+		store.SaveUploadData(taskId, filetransfer.UploadData{})
+		data := store.GetUploadDataWithRm(taskId)
+		assertNotNil(t, data)
+		assertFalse(t, store.IsTaskExist(taskId))
 	})
 }
 
@@ -54,7 +63,7 @@ func TestMemoryStore_SaveUploadData(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := filetransfer.NewMemoryStore()
 			m.SaveUploadData(tt.args.taskId, tt.args.data)
-			got := m.GetUploadData(tt.args.taskId)
+			got := m.GetUploadDataWithRm(tt.args.taskId)
 			assertStructEquals(t, *got, tt.args.data)
 		})
 	}
@@ -63,7 +72,7 @@ func TestMemoryStore_SaveUploadData(t *testing.T) {
 		m := filetransfer.NewMemoryStore()
 		saved := filetransfer.UploadData{}
 		m.SaveUploadData("", saved)
-		got := m.GetUploadData("")
+		got := m.GetUploadDataWithRm("")
 		assertNilUploadData(t, got)
 	})
 }
