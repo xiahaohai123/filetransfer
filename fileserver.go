@@ -25,6 +25,7 @@ func NewFileServer(adapter DataAdapter) *gin.Engine {
 	r.POST("/file/upload/initialization", fileServer.uploadInitHandler)
 	r.POST("/file/upload", fileServer.uploadHandler)
 	r.POST("/file/download/initialization", fileServer.downloadInitHandler)
+	r.GET("/file/download", fileServer.downloadHandler)
 	fileServer.dataAdapter = adapter
 	return r
 }
@@ -45,7 +46,7 @@ func (fs *FileServerController) uploadInitHandler(ctx *gin.Context) {
 
 func (fs *FileServerController) uploadHandler(ctx *gin.Context) {
 	taskId := ctx.Query("taskId")
-	if !fs.dataAdapter.IsTaskExist(taskId) {
+	if !fs.dataAdapter.IsUploadTaskExist(taskId) {
 		ctx.JSON(http.StatusBadRequest, getTaskNotFoundErr())
 	} else {
 		err := fs.handleUpload(taskId, ctx.Request.Body)
@@ -69,6 +70,13 @@ func (fs *FileServerController) downloadInitHandler(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, OkBody{Data: Data{"taskId": NewTaskId()}})
+}
+
+func (fs *FileServerController) downloadHandler(ctx *gin.Context) {
+	taskId := ctx.Query("taskId")
+	if !fs.dataAdapter.IsDownloadTaskExist(taskId) {
+		ctx.JSON(http.StatusBadRequest, getTaskNotFoundErr())
+	}
 }
 
 func (fs *FileServerController) handleUploadInit(uploadData UploadData) string {
@@ -139,9 +147,11 @@ func (fs *FileServerController) handleUpload(taskId string, reader io.Reader) er
 }
 
 type DataAdapter interface {
-	IsTaskExist(taskId string) bool
+	IsUploadTaskExist(taskId string) bool
 	GetUploadChannel(taskId string) (WriteCloseRollback, error)
 	SaveUploadData(taskId string, uploadData UploadData)
+	IsDownloadTaskExist(taskId string) bool
+	GetDownloadChannel(taskId string) (io.ReadCloser, error)
 }
 
 func NewTaskId() string {

@@ -23,13 +23,21 @@ func (f *FileTranDataAdapter) SaveUploadData(taskId string, uploadData UploadDat
 	f.dataStore.SaveUploadData(taskId, uploadData)
 }
 
-func (f *FileTranDataAdapter) IsTaskExist(taskId string) bool {
+func (f *FileTranDataAdapter) IsUploadTaskExist(taskId string) bool {
 	return f.dataStore.IsTaskExist(taskId)
 }
 
 func (f *FileTranDataAdapter) GetUploadChannel(taskId string) (WriteCloseRollback, error) {
 	uploadData := f.dataStore.GetUploadDataWithRm(taskId)
 	return f.createSftpChannel(*uploadData)
+}
+
+func (f *FileTranDataAdapter) IsDownloadTaskExist(taskId string) bool {
+	panic("implement me")
+}
+
+func (f *FileTranDataAdapter) GetDownloadChannel(taskId string) (io.ReadCloser, error) {
+	panic("implement me")
 }
 
 func (f *FileTranDataAdapter) createSftpChannel(data UploadData) (WriteCloseRollback, error) {

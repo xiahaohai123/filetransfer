@@ -16,6 +16,8 @@ import (
 )
 
 const correctJson = `{"resource":{"address":"summersea1.top","port":22,"account":{"name":"ccc","password":"pwd"}},"path":"/root","filename":"test.txt"}`
+const uploadUrl = "/file/upload"
+const downloadUrl = "/file/download"
 
 type initTestCase struct {
 	requestBody        interface{}
@@ -25,7 +27,7 @@ type initTestCase struct {
 
 func TestUploadFileInitialise(t *testing.T) {
 	url := "/file/upload/initialization"
-	fileServer := filetransfer.NewFileServer(&StubStore{})
+	fileServer := filetransfer.NewFileServer(&StubAdapter{})
 
 	t.Run("return status when input some param", func(t *testing.T) {
 		errResponseBody := getInvalidErrBody()
@@ -229,9 +231,10 @@ func TestUploadFileInitialise(t *testing.T) {
 	})
 }
 
-type StubStore struct {
-	taskId   string
-	filename string
+type StubAdapter struct {
+	uploadTaskId   string
+	filename       string
+	downloadTaskId string
 }
 
 type fileRollback struct {
@@ -242,8 +245,8 @@ func (f *fileRollback) RollBack() error {
 	return os.Remove(f.Name())
 }
 
-func (s *StubStore) GetUploadChannel(taskId string) (filetransfer.WriteCloseRollback, error) {
-	if s.taskId == taskId {
+func (s *StubAdapter) GetUploadChannel(taskId string) (filetransfer.WriteCloseRollback, error) {
+	if s.uploadTaskId == taskId {
 		rollback := fileRollback{}
 		file, _ := os.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, 0777)
 		rollback.File = file
@@ -252,17 +255,29 @@ func (s *StubStore) GetUploadChannel(taskId string) (filetransfer.WriteCloseRoll
 	return nil, nil
 }
 
-func (s *StubStore) SaveUploadData(taskId string, uploadData filetransfer.UploadData) {
-	s.taskId = taskId
+func (s *StubAdapter) SaveUploadData(taskId string, uploadData filetransfer.UploadData) {
+	s.uploadTaskId = taskId
 }
 
-func (s *StubStore) IsTaskExist(taskId string) bool {
-	return s.taskId == taskId
+func (s *StubAdapter) IsDownloadTaskExist(taskId string) bool {
+	return s.downloadTaskId == taskId
+}
+
+func (s *StubAdapter) IsUploadTaskExist(taskId string) bool {
+	return s.uploadTaskId == taskId
+}
+
+func (s *StubAdapter) GetDownloadChannel(taskId string) (io.ReadCloser, error) {
+	if s.uploadTaskId == taskId {
+		file, _ := os.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, 0777)
+		return file, nil
+	}
+	return nil, nil
 }
 
 func TestUploadFile(t *testing.T) {
-	url := "/file/upload"
-	fileServer := filetransfer.NewFileServer(&StubStore{taskId: uuid.NewV4().String()})
+	url := uploadUrl
+	fileServer := filetransfer.NewFileServer(&StubAdapter{uploadTaskId: uuid.NewV4().String()})
 
 	t.Run("api exists", func(t *testing.T) {
 		request := newGetRequest(url)
@@ -271,31 +286,12 @@ func TestUploadFile(t *testing.T) {
 		assertIntEquals(t, response.Code, http.StatusNotFound)
 	})
 
-	t.Run("can not find task id in system", func(t *testing.T) {
-		taskId := "a55b14b2-fb55-40b8-8311-6d1e7d949fb5"
-		uploadUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
-		request := newPostRequestReader(uploadUrl, nil)
-		response := httptest.NewRecorder()
-		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusBadRequest)
-
-		wantErrorBody := filetransfer.ErrorBody{
-			Error: filetransfer.ErrorContent{
-				Message: filetransfer.ErrorContentTaskNotFound,
-				Code:    filetransfer.ErrorCodeResourceNotFound,
-			},
-		}
-		var gotErrorBody filetransfer.ErrorBody
-		_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
-		assertStructEquals(t, gotErrorBody, wantErrorBody)
-	})
-
 	t.Run("upload", func(t *testing.T) {
 		taskId := uuid.NewV4().String()
 		contentFilename, deleteContentFile := createTempFileWithContent(t)
 		defer deleteContentFile()
 		dstFilename := createRandomFilename("tempFile", ".txt")
-		fileServer := filetransfer.NewFileServer(&StubStore{taskId: taskId, filename: dstFilename})
+		fileServer := filetransfer.NewFileServer(&StubAdapter{uploadTaskId: taskId, filename: dstFilename})
 		contentFile, _ := os.Open(contentFilename)
 		defer contentFile.Close()
 		uploadUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
@@ -312,7 +308,7 @@ func TestUploadByIntegration(t *testing.T) {
 	urlInit := "/file/upload/initialization"
 	urlUpload := "/file/upload"
 	dstFilename := createRandomFilename("tempFile", ".txt")
-	fileServer := filetransfer.NewFileServer(&StubStore{filename: dstFilename})
+	fileServer := filetransfer.NewFileServer(&StubAdapter{filename: dstFilename})
 	request := newPostRequestReader(urlInit, strings.NewReader(correctJson))
 	response := httptest.NewRecorder()
 	fileServer.ServeHTTP(response, request)
@@ -335,7 +331,7 @@ func TestUploadByIntegration(t *testing.T) {
 
 func TestDownloadFileInit(t *testing.T) {
 	url := "/file/download/initialization"
-	fileServer := filetransfer.NewFileServer(&StubStore{})
+	fileServer := filetransfer.NewFileServer(&StubAdapter{})
 	t.Run("test bad request", func(t *testing.T) {
 		errResponseBody := getInvalidErrBody()
 		testCases := []initTestCase{
@@ -465,6 +461,48 @@ func TestDownloadFileInit(t *testing.T) {
 	})
 }
 
+func TestDownloadFile(t *testing.T) {
+	//url := downloadUrl
+	//
+	//taskId := uuid.NewV4().String()
+	//contentFilename, deleteContentFile := createTempFileWithContent(t)
+	//defer deleteContentFile()
+	//fileServer := filetransfer.NewFileServer(&StubAdapter{uploadTaskId: taskId, filename: contentFilename})
+	//contentFile, _ := os.Open(contentFilename)
+	//defer contentFile.Close()
+	//uploadUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
+	//request := newPostRequestReader(uploadUrl, contentFile)
+	//response := httptest.NewRecorder()
+	//fileServer.ServeHTTP(response, request)
+	//assertIntEquals(t, response.Code, http.StatusNoContent)
+	//assertFileContentEquals(t, contentFilename, dstFilename)
+	//_ = os.Remove(dstFilename)
+}
+
+func TestTaskNotFound(t *testing.T) {
+	test := func(url string, fn func(requestUrl string) *http.Request) {
+		fileServer := filetransfer.NewFileServer(&StubAdapter{})
+		taskId := uuid.NewV4().String()
+		requestUrl := fmt.Sprintf("%s?taskId=%s", url, taskId)
+		request := fn(requestUrl)
+		response := httptest.NewRecorder()
+		fileServer.ServeHTTP(response, request)
+		assertIntEquals(t, response.Code, http.StatusBadRequest)
+
+		wantErrorBody := getTaskNotFoundBody()
+		var gotErrorBody filetransfer.ErrorBody
+		_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
+		assertStructEquals(t, gotErrorBody, wantErrorBody)
+	}
+
+	test(uploadUrl, func(requestUrl string) *http.Request {
+		return newPostRequestReader(requestUrl, nil)
+	})
+	test(downloadUrl, func(requestUrl string) *http.Request {
+		return newGetRequest(requestUrl)
+	})
+}
+
 func testHttpStatus(t *testing.T, requestBody interface{}, got, wantStatus int) {
 	t.Helper()
 	if got != wantStatus {
@@ -556,4 +594,14 @@ func getInvalidErrBody() filetransfer.ErrorBody {
 	errResponseBody := filetransfer.ErrorBody{Error: filetransfer.ErrorContent{
 		Message: filetransfer.ErrorContentInvalidParam, Code: filetransfer.ErrorCodeInvalidParam}}
 	return errResponseBody
+}
+
+func getTaskNotFoundBody() filetransfer.ErrorBody {
+	wantErrorBody := filetransfer.ErrorBody{
+		Error: filetransfer.ErrorContent{
+			Message: filetransfer.ErrorContentTaskNotFound,
+			Code:    filetransfer.ErrorCodeResourceNotFound,
+		},
+	}
+	return wantErrorBody
 }

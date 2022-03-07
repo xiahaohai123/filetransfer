@@ -44,8 +44,8 @@ func TestFileTranDataAdapter_IsTaskExist(t *testing.T) {
 	missedTaskId := filetransfer.NewTaskId()
 	store := &StubDataStore{taskId: existedTaskId}
 	adapter := filetransfer.NewFileTranDataAdapter(store)
-	assertTrue(t, adapter.IsTaskExist(existedTaskId))
-	assertFalse(t, adapter.IsTaskExist(missedTaskId))
+	assertTrue(t, adapter.IsUploadTaskExist(existedTaskId))
+	assertFalse(t, adapter.IsUploadTaskExist(missedTaskId))
 	assertIntEquals(t, store.existCalls, 2)
 }
 
@@ -75,7 +75,7 @@ func TestFileTranDataAdapter_GetUploadData(t *testing.T) {
 		assertNil(t, channel.RollBack())
 		assertNil(t, channel.Close())
 	}
-	assertFalse(t, adapter.IsTaskExist(existedTaskId))
+	assertFalse(t, adapter.IsUploadTaskExist(existedTaskId))
 }
 
 func assertTrue(t *testing.T, got bool) {
