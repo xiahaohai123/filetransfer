@@ -423,7 +423,7 @@ func createTempFileWithContent(t *testing.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("could not create temp file %v", err)
 	}
-	content := uuid.NewV4().String()
+	content := uuid.NewV4().String() + "中文测试"
 	_, err = tempFile.Write([]byte(content))
 	if err != nil {
 		t.Fatalf("could not input content to file %v", err)
