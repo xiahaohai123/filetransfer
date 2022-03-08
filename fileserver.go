@@ -107,6 +107,9 @@ func (fs *FileServerController) downloadHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, getTaskNotFoundErr())
 	} else {
 		err := fs.handleDownload(taskId, ctx.Writer, setFilename)
+		if err == DownloadDir {
+			ctx.JSON(http.StatusBadRequest, NewErrorBody("InvalidDownload", "Can not download directory"))
+		}
 		if err != nil {
 			log.Printf("problem download file: %v", err)
 			ctx.Status(http.StatusInternalServerError)
@@ -117,6 +120,9 @@ func (fs *FileServerController) downloadHandler(ctx *gin.Context) {
 func (fs *FileServerController) handleDownload(taskId string, writer io.Writer, setFilename func(value string)) error {
 	readCloser, filename, err := fs.dataAdapter.GetDownloadChannelFilename(taskId)
 	if err != nil {
+		if err == DownloadDir {
+			return err
+		}
 		return fmt.Errorf("problem create download channel %v", err)
 	}
 	setFilename(filename)

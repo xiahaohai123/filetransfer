@@ -1,12 +1,14 @@
 package filetransfer
 
 type MemoryStore struct {
-	storeData map[string]UploadData
+	uploadStore   map[string]UploadData
+	downloadStore map[string]DownloadData
 }
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		storeData: make(map[string]UploadData),
+		uploadStore:   make(map[string]UploadData),
+		downloadStore: make(map[string]DownloadData),
 	}
 }
 
@@ -14,39 +16,44 @@ func (m *MemoryStore) SaveUploadData(taskId string, data UploadData) {
 	if taskId == "" {
 		return
 	}
-	m.storeData[taskId] = data
+	m.uploadStore[taskId] = data
 }
 
-func (m *MemoryStore) GetUploadDataWithRm(taskId string) *UploadData {
+func (m *MemoryStore) GetUploadDataRemove(taskId string) *UploadData {
 	if !m.IsUploadTaskExist(taskId) {
 		return nil
 	}
-	data := m.storeData[taskId]
+	data := m.uploadStore[taskId]
 	m.removeTaskId(taskId)
 	return &data
 }
 
 func (m *MemoryStore) IsUploadTaskExist(taskId string) bool {
-	_, exist := m.storeData[taskId]
+	_, exist := m.uploadStore[taskId]
 	return exist
 }
 
-func (m *MemoryStore) GetUploadDataRemove(taskId string) *UploadData {
-	panic("implement me")
-}
-
 func (m *MemoryStore) SaveDownloadData(taskId string, data DownloadData) {
-	panic("implement me")
+	if taskId == "" {
+		return
+	}
+	m.downloadStore[taskId] = data
 }
 
 func (m *MemoryStore) GetDownloadDataRemove(taskId string) *DownloadData {
-	panic("implement me")
+	if !m.IsDownloadTaskExist(taskId) {
+		return nil
+	}
+	data := m.downloadStore[taskId]
+	m.removeTaskId(taskId)
+	return &data
 }
 
 func (m *MemoryStore) IsDownloadTaskExist(taskId string) bool {
-	panic("implement me")
+	_, exist := m.downloadStore[taskId]
+	return exist
 }
 
 func (m *MemoryStore) removeTaskId(taskId string) {
-	delete(m.storeData, taskId)
+	delete(m.uploadStore, taskId)
 }

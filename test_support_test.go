@@ -1,6 +1,7 @@
 package filetransfer_test
 
 import (
+	"github.com/modern-go/reflect2"
 	"reflect"
 	"testing"
 )
@@ -60,7 +61,7 @@ func assertNotNil(t *testing.T, got interface{}) {
 
 func assertNil(t *testing.T, got interface{}) {
 	t.Helper()
-	if got != nil {
+	if got != nil && !reflect2.IsNil(got) {
 		t.Errorf("want nil but got other: %+v", got)
 	}
 }
