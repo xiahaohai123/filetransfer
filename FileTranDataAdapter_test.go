@@ -75,14 +75,7 @@ func TestFileTranDataAdapter_IsTaskExist(t *testing.T) {
 func TestFileTranDataAdapter_GetUploadChannel(t *testing.T) {
 	existedTaskId := filetransfer.NewTaskId()
 	store := &StubDataStore{taskId: existedTaskId, uploadData: filetransfer.UploadData{
-		Resource: filetransfer.Resource{
-			Address: "192.168.138.129",
-			Port:    22,
-			Account: filetransfer.Account{
-				Name:     "test",
-				Password: "test",
-			},
-		},
+		Resource: getSftpResource(),
 		Path:     "/home/test",
 		Filename: "testAaa.txt",
 	}}
@@ -117,5 +110,50 @@ func TestFileTranDataAdapter_IsDownloadTaskExist(t *testing.T) {
 	assertIntEquals(t, store.downloadExistCalls, 2)
 }
 
+// 测试点
+// Path指定的目标为目录
+// 析出filename
+// sftp连接成功
+// 任务号清空
 func TestFileTranDataAdapter_GetDownloadChannelFilename(t *testing.T) {
+	existedTaskId := filetransfer.NewTaskId()
+	t.Run("common test", func(t *testing.T) {
+		store := &StubDataStore{taskId: existedTaskId, downloadData: filetransfer.DownloadData{
+			Resource: getSftpResource(),
+			Path:     "/home/test/ccc.txt",
+		}}
+		adapter := filetransfer.NewFileTranDataAdapter(store)
+		channel, filename, err := adapter.GetDownloadChannelFilename(existedTaskId)
+		if err != nil {
+			log.Printf("%v", err)
+		}
+		assertNotNil(t, channel)
+		assertIntEquals(t, store.getDownloadChannelCalls, 1)
+		if channel != nil {
+			assertNil(t, channel.Close())
+		}
+		assertStringEqual(t, filename, "ccc.txt")
+		assertFalse(t, adapter.IsUploadTaskExist(existedTaskId))
+	})
+
+	t.Run("input path without filename", func(t *testing.T) {
+		store := &StubDataStore{taskId: existedTaskId, downloadData: filetransfer.DownloadData{
+			Resource: getSftpResource(),
+			Path:     "/home/test",
+		}}
+		adapter := filetransfer.NewFileTranDataAdapter(store)
+		_, _, err := adapter.GetDownloadChannelFilename(existedTaskId)
+		assertErrEquals(t, err, filetransfer.DownloadDir)
+	})
+}
+
+func getSftpResource() filetransfer.Resource {
+	return filetransfer.Resource{
+		Address: "192.168.138.129",
+		Port:    22,
+		Account: filetransfer.Account{
+			Name:     "test",
+			Password: "test",
+		},
+	}
 }

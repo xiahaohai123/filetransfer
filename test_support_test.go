@@ -64,3 +64,10 @@ func assertNil(t *testing.T, got interface{}) {
 		t.Errorf("want nil but got other: %+v", got)
 	}
 }
+
+func assertErrEquals(t *testing.T, got, want error) {
+	t.Helper()
+	if got != want {
+		t.Errorf("want %v but got %v", want, got)
+	}
+}
