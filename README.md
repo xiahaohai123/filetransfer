@@ -2,6 +2,9 @@
 
 这是一个负责传输文件的应用程序。
 
+# docker镜像
+docker pull xiahaohai123/filetransfer
+
 # 目前的功能
 
 通过http请求上传文件到目标linux服务器。
