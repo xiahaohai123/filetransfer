@@ -24,7 +24,7 @@ func (m *MemoryStore) GetUploadDataRemove(taskId string) *UploadData {
 		return nil
 	}
 	data := m.uploadStore[taskId]
-	m.removeTaskId(taskId)
+	delete(m.uploadStore, taskId)
 	return &data
 }
 
@@ -45,15 +45,11 @@ func (m *MemoryStore) GetDownloadDataRemove(taskId string) *DownloadData {
 		return nil
 	}
 	data := m.downloadStore[taskId]
-	m.removeTaskId(taskId)
+	delete(m.downloadStore, taskId)
 	return &data
 }
 
 func (m *MemoryStore) IsDownloadTaskExist(taskId string) bool {
 	_, exist := m.downloadStore[taskId]
 	return exist
-}
-
-func (m *MemoryStore) removeTaskId(taskId string) {
-	delete(m.uploadStore, taskId)
 }
