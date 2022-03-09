@@ -120,7 +120,8 @@ func TestFileTranDataAdapter_GetDownloadChannelFilename(t *testing.T) {
 	t.Run("common test", func(t *testing.T) {
 		store := &StubDataStore{taskId: existedTaskId, downloadData: filetransfer.DownloadData{
 			Resource: getSftpResource(),
-			Path:     "/home/test/ccc.txt",
+			// 需要目标机器有该文件
+			Path: "/home/test/ccc.txt",
 		}}
 		adapter := filetransfer.NewFileTranDataAdapter(store)
 		channel, filename, err := adapter.GetDownloadChannelFilename(existedTaskId)
@@ -149,7 +150,7 @@ func TestFileTranDataAdapter_GetDownloadChannelFilename(t *testing.T) {
 
 func getSftpResource() filetransfer.Resource {
 	return filetransfer.Resource{
-		Address: "192.168.138.129",
+		Address: "localhost",
 		Port:    22,
 		Account: filetransfer.Account{
 			Name:     "test",

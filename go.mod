@@ -10,6 +10,7 @@ require (
 	github.com/pkg/sftp v1.13.4
 	github.com/satori/go.uuid v1.2.0
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -29,5 +30,4 @@ require (
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

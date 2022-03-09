@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	store := filetransfer.NewMemoryStore()
+	store := filetransfer.CreateStoreByConfig()
 	adapter := filetransfer.NewFileTranDataAdapter(store)
 	server := filetransfer.NewFileServer(adapter)
 
