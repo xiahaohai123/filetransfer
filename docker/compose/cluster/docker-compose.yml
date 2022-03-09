@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  filetransferA:
+    image: filetransfer
+    ports:
+      - 8080:8080
+    volumes:
+      - ../../../web:/etc/filetransfer
+  filetransferB:
+    image: filetransfer
+    ports:
+      - 8081:8080
+    volumes:
+      - ../../../web:/etc/filetransfer
+  nginx:
+    image: nginx
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
