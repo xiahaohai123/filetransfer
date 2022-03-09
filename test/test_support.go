@@ -54,7 +54,7 @@ func AssertFalse(t *testing.T, got bool) {
 
 func AssertNotNil(t *testing.T, got interface{}) {
 	t.Helper()
-	if got == nil {
+	if got == nil || reflect2.IsNil(got) {
 		t.Errorf("want not nil but got")
 	}
 }

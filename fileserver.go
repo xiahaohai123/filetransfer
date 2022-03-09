@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"summersea.top/filetransfer/transferframe"
 )
 
 func init() {
@@ -77,7 +78,7 @@ func (fs *FileServerController) uploadHandler(ctx *gin.Context) {
 		err := fs.handleUpload(taskId, ctx.Request.Body)
 		if err != nil {
 			log.Printf("problem upload file: %v", err)
-			ctx.Status(http.StatusInternalServerError)
+			ctx.Status(http.StatusBadRequest)
 		} else {
 			ctx.Status(http.StatusNoContent)
 		}
@@ -90,7 +91,13 @@ func (fs *FileServerController) handleUpload(taskId string, reader io.Reader) er
 		return fmt.Errorf("problem create upload channel %v", err)
 	}
 	defer closeWithErrLog(writeCloser)
-	_, err = io.Copy(writeCloser, reader)
+	manager, err := transferframe.NewTransferManager(reader)
+	if err != nil {
+		return fmt.Errorf("problem create transfer manager: %v", err)
+	}
+	writer, _ := transferframe.NewBasicWriter(writeCloser)
+	_ = manager.AddWriter(writer)
+	err = manager.StartTransfer()
 	if err != nil {
 		return fmt.Errorf("problem transfer file: %v", err)
 	}
@@ -112,7 +119,7 @@ func (fs *FileServerController) downloadHandler(ctx *gin.Context) {
 		}
 		if err != nil {
 			log.Printf("problem download file: %v", err)
-			ctx.Status(http.StatusInternalServerError)
+			ctx.Status(http.StatusBadRequest)
 		}
 	}
 }
@@ -127,7 +134,13 @@ func (fs *FileServerController) handleDownload(taskId string, writer io.Writer, 
 	}
 	setFilename(filename)
 	defer closeWithErrLog(readCloser)
-	_, err = io.Copy(writer, readCloser)
+	manager, err := transferframe.NewTransferManager(readCloser)
+	if err != nil {
+		return fmt.Errorf("problem create transfer manager: %v", err)
+	}
+	transferWriter, _ := transferframe.NewBasicWriter(writer)
+	_ = manager.AddWriter(transferWriter)
+	err = manager.StartTransfer()
 	if err != nil {
 		return fmt.Errorf("problem transfer file: %v", err)
 	}
