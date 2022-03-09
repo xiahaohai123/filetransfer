@@ -3,6 +3,7 @@ package filetransfer_test
 import (
 	"log"
 	"summersea.top/filetransfer"
+	"summersea.top/filetransfer/test"
 	"testing"
 )
 
@@ -58,7 +59,7 @@ func TestFileTranDataAdapter_SaveUploadData(t *testing.T) {
 	store := &StubDataStore{}
 	adapter := filetransfer.NewFileTranDataAdapter(store)
 	adapter.SaveUploadData("", filetransfer.UploadData{})
-	assertIntEquals(t, store.saveUploadCalls, 1)
+	testutil.AssertIntEquals(t, store.saveUploadCalls, 1)
 }
 
 func TestFileTranDataAdapter_IsTaskExist(t *testing.T) {
@@ -66,9 +67,9 @@ func TestFileTranDataAdapter_IsTaskExist(t *testing.T) {
 	missedTaskId := filetransfer.NewTaskId()
 	store := &StubDataStore{taskId: existedTaskId}
 	adapter := filetransfer.NewFileTranDataAdapter(store)
-	assertTrue(t, adapter.IsUploadTaskExist(existedTaskId))
-	assertFalse(t, adapter.IsUploadTaskExist(missedTaskId))
-	assertIntEquals(t, store.uploadExistCalls, 2)
+	testutil.AssertTrue(t, adapter.IsUploadTaskExist(existedTaskId))
+	testutil.AssertFalse(t, adapter.IsUploadTaskExist(missedTaskId))
+	testutil.AssertIntEquals(t, store.uploadExistCalls, 2)
 }
 
 // 该测试需要配置外部sftp环境以测试，没有环境时可以无法通过
@@ -84,20 +85,20 @@ func TestFileTranDataAdapter_GetUploadChannel(t *testing.T) {
 	if err != nil {
 		log.Printf("%v", err)
 	}
-	assertNotNil(t, channel)
-	assertIntEquals(t, store.getUploadChannelCalls, 1)
+	testutil.AssertNotNil(t, channel)
+	testutil.AssertIntEquals(t, store.getUploadChannelCalls, 1)
 	if channel != nil {
-		assertNil(t, channel.RollBack())
-		assertNil(t, channel.Close())
+		testutil.AssertNil(t, channel.RollBack())
+		testutil.AssertNil(t, channel.Close())
 	}
-	assertFalse(t, adapter.IsUploadTaskExist(existedTaskId))
+	testutil.AssertFalse(t, adapter.IsUploadTaskExist(existedTaskId))
 }
 
 func TestFileTranDataAdapter_SaveDownloadData(t *testing.T) {
 	store := &StubDataStore{}
 	adapter := filetransfer.NewFileTranDataAdapter(store)
 	adapter.SaveDownloadData(filetransfer.NewTaskId(), filetransfer.DownloadData{})
-	assertIntEquals(t, store.saveDownloadCalls, 1)
+	testutil.AssertIntEquals(t, store.saveDownloadCalls, 1)
 }
 
 func TestFileTranDataAdapter_IsDownloadTaskExist(t *testing.T) {
@@ -105,9 +106,9 @@ func TestFileTranDataAdapter_IsDownloadTaskExist(t *testing.T) {
 	missedTaskId := filetransfer.NewTaskId()
 	store := &StubDataStore{taskId: existedTaskId}
 	adapter := filetransfer.NewFileTranDataAdapter(store)
-	assertTrue(t, adapter.IsDownloadTaskExist(existedTaskId))
-	assertFalse(t, adapter.IsDownloadTaskExist(missedTaskId))
-	assertIntEquals(t, store.downloadExistCalls, 2)
+	testutil.AssertTrue(t, adapter.IsDownloadTaskExist(existedTaskId))
+	testutil.AssertFalse(t, adapter.IsDownloadTaskExist(missedTaskId))
+	testutil.AssertIntEquals(t, store.downloadExistCalls, 2)
 }
 
 // 测试点
@@ -128,13 +129,13 @@ func TestFileTranDataAdapter_GetDownloadChannelFilename(t *testing.T) {
 		if err != nil {
 			log.Printf("%v", err)
 		}
-		assertNotNil(t, channel)
-		assertIntEquals(t, store.getDownloadChannelCalls, 1)
+		testutil.AssertNotNil(t, channel)
+		testutil.AssertIntEquals(t, store.getDownloadChannelCalls, 1)
 		if channel != nil {
-			assertNil(t, channel.Close())
+			testutil.AssertNil(t, channel.Close())
 		}
-		assertStringEqual(t, filename, "ccc.txt")
-		assertFalse(t, adapter.IsUploadTaskExist(existedTaskId))
+		testutil.AssertStringEqual(t, filename, "ccc.txt")
+		testutil.AssertFalse(t, adapter.IsUploadTaskExist(existedTaskId))
 	})
 
 	t.Run("input path without filename", func(t *testing.T) {
@@ -144,7 +145,7 @@ func TestFileTranDataAdapter_GetDownloadChannelFilename(t *testing.T) {
 		}}
 		adapter := filetransfer.NewFileTranDataAdapter(store)
 		_, _, err := adapter.GetDownloadChannelFilename(existedTaskId)
-		assertErrEquals(t, err, filetransfer.DownloadDir)
+		testutil.AssertErrEquals(t, err, filetransfer.DownloadDir)
 	})
 }
 

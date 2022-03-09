@@ -2,6 +2,7 @@ package filetransfer_test
 
 import (
 	"summersea.top/filetransfer"
+	"summersea.top/filetransfer/test"
 	"testing"
 )
 
@@ -11,15 +12,15 @@ func TestMemoryStore_GetUploadDataRemove(t *testing.T) {
 	for _, store := range dataStores {
 		t.Run("test get non exist data", func(t *testing.T) {
 			data := store.GetUploadDataRemove(filetransfer.NewTaskId())
-			assertNil(t, data)
+			testutil.AssertNil(t, data)
 		})
 
 		t.Run("test rm data", func(t *testing.T) {
 			taskId := filetransfer.NewTaskId()
 			store.SaveUploadData(taskId, filetransfer.UploadData{})
 			data := store.GetUploadDataRemove(taskId)
-			assertNotNil(t, data)
-			assertFalse(t, store.IsUploadTaskExist(taskId))
+			testutil.AssertNotNil(t, data)
+			testutil.AssertFalse(t, store.IsUploadTaskExist(taskId))
 		})
 	}
 }
@@ -30,14 +31,14 @@ func TestMemoryStore_IsUploadTaskExist(t *testing.T) {
 		t.Run("test exist data", func(t *testing.T) {
 			taskId := filetransfer.NewTaskId()
 			store.SaveUploadData(taskId, filetransfer.UploadData{})
-			assertTrue(t, store.IsUploadTaskExist(taskId))
+			testutil.AssertTrue(t, store.IsUploadTaskExist(taskId))
 		})
 
 		t.Run("test non exist data", func(t *testing.T) {
-			assertFalse(t, store.IsUploadTaskExist(filetransfer.NewTaskId()))
+			testutil.AssertFalse(t, store.IsUploadTaskExist(filetransfer.NewTaskId()))
 
 			store.SaveUploadData("", filetransfer.UploadData{})
-			assertFalse(t, store.IsUploadTaskExist(""))
+			testutil.AssertFalse(t, store.IsUploadTaskExist(""))
 		})
 	}
 }
@@ -69,7 +70,7 @@ func TestMemoryStore_SaveUploadData(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				store.SaveUploadData(tt.args.taskId, tt.args.data)
 				got := store.GetUploadDataRemove(tt.args.taskId)
-				assertStructEquals(t, *got, tt.args.data)
+				testutil.AssertStructEquals(t, *got, tt.args.data)
 			})
 		}
 
@@ -77,7 +78,7 @@ func TestMemoryStore_SaveUploadData(t *testing.T) {
 			saved := filetransfer.UploadData{}
 			store.SaveUploadData("", saved)
 			got := store.GetUploadDataRemove("")
-			assertNil(t, got)
+			testutil.AssertNil(t, got)
 		})
 	}
 }
@@ -87,15 +88,15 @@ func TestMemoryStore_GetDownloadDataRemove(t *testing.T) {
 	for _, store := range dataStores {
 		t.Run("test get non exist data", func(t *testing.T) {
 			data := store.GetDownloadDataRemove(filetransfer.NewTaskId())
-			assertNil(t, data)
+			testutil.AssertNil(t, data)
 		})
 
 		t.Run("test rm data", func(t *testing.T) {
 			taskId := filetransfer.NewTaskId()
 			store.SaveDownloadData(taskId, filetransfer.DownloadData{})
 			data := store.GetDownloadDataRemove(taskId)
-			assertNotNil(t, data)
-			assertFalse(t, store.IsUploadTaskExist(taskId))
+			testutil.AssertNotNil(t, data)
+			testutil.AssertFalse(t, store.IsUploadTaskExist(taskId))
 		})
 	}
 }
@@ -106,14 +107,14 @@ func TestMemoryStore_IsDownloadTaskExist(t *testing.T) {
 		t.Run("test exist data", func(t *testing.T) {
 			taskId := filetransfer.NewTaskId()
 			store.SaveDownloadData(taskId, filetransfer.DownloadData{})
-			assertTrue(t, store.IsDownloadTaskExist(taskId))
+			testutil.AssertTrue(t, store.IsDownloadTaskExist(taskId))
 		})
 
 		t.Run("test non exist data", func(t *testing.T) {
-			assertFalse(t, store.IsDownloadTaskExist(filetransfer.NewTaskId()))
+			testutil.AssertFalse(t, store.IsDownloadTaskExist(filetransfer.NewTaskId()))
 
 			store.SaveDownloadData("", filetransfer.DownloadData{})
-			assertFalse(t, store.IsDownloadTaskExist(""))
+			testutil.AssertFalse(t, store.IsDownloadTaskExist(""))
 		})
 	}
 }
@@ -143,7 +144,7 @@ func TestMemoryStore_SaveDownloadData(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				store.SaveDownloadData(tt.args.taskId, tt.args.data)
 				got := store.GetDownloadDataRemove(tt.args.taskId)
-				assertStructEquals(t, *got, tt.args.data)
+				testutil.AssertStructEquals(t, *got, tt.args.data)
 			})
 		}
 
@@ -151,7 +152,7 @@ func TestMemoryStore_SaveDownloadData(t *testing.T) {
 			saved := filetransfer.DownloadData{}
 			store.SaveDownloadData("", saved)
 			got := store.GetDownloadDataRemove("")
-			assertNil(t, got)
+			testutil.AssertNil(t, got)
 		})
 	}
 }

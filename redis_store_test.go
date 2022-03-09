@@ -2,6 +2,7 @@ package filetransfer_test
 
 import (
 	"summersea.top/filetransfer"
+	testutil "summersea.top/filetransfer/test"
 	"testing"
 )
 
@@ -10,13 +11,13 @@ import (
 func TestNewRedisStore(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
 		store, err := filetransfer.NewRedisStore("localhost:6379", "", 0)
-		assertNil(t, err)
-		assertNotNil(t, store)
+		testutil.AssertNil(t, err)
+		testutil.AssertNotNil(t, store)
 	})
 
 	t.Run("wrong message", func(t *testing.T) {
 		store, err := filetransfer.NewRedisStore("localhost:6381", "", 0)
-		assertNotNil(t, err)
-		assertNil(t, store)
+		testutil.AssertNotNil(t, err)
+		testutil.AssertNil(t, store)
 	})
 }

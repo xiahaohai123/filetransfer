@@ -4,27 +4,28 @@ import (
 	"gopkg.in/yaml.v2"
 	"os"
 	"summersea.top/filetransfer"
+	"summersea.top/filetransfer/test"
 	"testing"
 )
 
 func TestNewYamlContent(t *testing.T) {
 	t.Run("no config file", func(t *testing.T) {
 		content, err := filetransfer.NewYamlContent("")
-		assertNil(t, content)
-		assertNotNil(t, err)
+		testutil.AssertNil(t, content)
+		testutil.AssertNotNil(t, err)
 	})
 
 	t.Run("no content file", func(t *testing.T) {
 		file := createYmlConfigFile()
 		_ = file.Close()
 		content, err := filetransfer.NewYamlContent("")
-		assertNil(t, err)
-		assertNotNil(t, content)
+		testutil.AssertNil(t, err)
+		testutil.AssertNotNil(t, content)
 		err = os.Remove(file.Name())
 		if err != nil {
 			t.Errorf("failed delete: %v", err)
 		}
-		assertStructEquals(t, *content, filetransfer.YamlContent{})
+		testutil.AssertStructEquals(t, *content, filetransfer.YamlContent{})
 	})
 
 	t.Run("content file", func(t *testing.T) {
@@ -42,7 +43,7 @@ func TestNewYamlContent(t *testing.T) {
 			t.Errorf("problem get yaml content: %v", err)
 		}
 		_ = os.Remove(file.Name())
-		assertStructEquals(t, *content, yamlContent)
+		testutil.AssertStructEquals(t, *content, yamlContent)
 	})
 }
 

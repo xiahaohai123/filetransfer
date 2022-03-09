@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"summersea.top/filetransfer"
+	"summersea.top/filetransfer/test"
 	"testing"
 )
 
@@ -192,11 +193,11 @@ func TestUploadFileInitialise(t *testing.T) {
 			if response.Code != http.StatusOK {
 				var gotErrorBody filetransfer.ErrorBody
 				_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
-				assertStructEquals(t, gotErrorBody, test.wantResponseBody)
+				testutil.AssertStructEquals(t, gotErrorBody, test.wantResponseBody)
 			} else {
 				okBody := extractOkBody(response.Body)
 				_, exist := okBody.Data["taskId"]
-				assertTrue(t, exist)
+				testutil.AssertTrue(t, exist)
 			}
 		}
 	})
@@ -207,33 +208,33 @@ func TestUploadFileInitialise(t *testing.T) {
 		request := newPostRequestReader(url, reader)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusBadRequest)
+		testutil.AssertIntEquals(t, response.Code, http.StatusBadRequest)
 
 		request1 := newPostRequestReader(url, nil)
 		response1 := httptest.NewRecorder()
 		fileServer.ServeHTTP(response1, request1)
-		assertIntEquals(t, response1.Code, http.StatusBadRequest)
+		testutil.AssertIntEquals(t, response1.Code, http.StatusBadRequest)
 	})
 
 	t.Run("using wrong method", func(t *testing.T) {
 		request := newGetRequest(url)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusNotFound)
+		testutil.AssertIntEquals(t, response.Code, http.StatusNotFound)
 	})
 
 	t.Run("get task id when correctly use method", func(t *testing.T) {
 		request := newPostRequestReader(url, strings.NewReader(correctJson))
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusOK)
+		testutil.AssertIntEquals(t, response.Code, http.StatusOK)
 
 		okBody := extractOkBody(response.Body)
 		taskId := okBody.Data["taskId"].(string)
 		if len(strings.Split(taskId, "-")) != 5 {
 			t.Errorf("want uuid but got other '%s'", taskId)
 		}
-		assertContent(t, taskId)
+		testutil.AssertContent(t, taskId)
 	})
 }
 
@@ -295,7 +296,7 @@ func TestUploadFile(t *testing.T) {
 		request := newGetRequest(url)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusNotFound)
+		testutil.AssertIntEquals(t, response.Code, http.StatusNotFound)
 	})
 
 	t.Run("upload", func(t *testing.T) {
@@ -310,7 +311,7 @@ func TestUploadFile(t *testing.T) {
 		request := newPostRequestReader(uploadUrl, contentFile)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusNoContent)
+		testutil.AssertIntEquals(t, response.Code, http.StatusNoContent)
 		assertFileContentEquals(t, contentFilename, dstFilename)
 		_ = os.Remove(dstFilename)
 	})
@@ -422,7 +423,7 @@ func TestDownloadFileInit(t *testing.T) {
 			response := testCase(t, test, url, fileServer)
 			var gotErrorBody filetransfer.ErrorBody
 			_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
-			assertStructEquals(t, gotErrorBody, test.wantResponseBody)
+			testutil.AssertStructEquals(t, gotErrorBody, test.wantResponseBody)
 		}
 	})
 
@@ -441,10 +442,10 @@ func TestDownloadFileInit(t *testing.T) {
 		request := newPostReqBody(t, url, downloadInitReqBody)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusOK)
+		testutil.AssertIntEquals(t, response.Code, http.StatusOK)
 		okBody := extractOkBody(response.Body)
 		taskId := okBody.Data["taskId"].(string)
-		assertContent(t, taskId)
+		testutil.AssertContent(t, taskId)
 	})
 }
 
@@ -459,15 +460,15 @@ func TestDownloadFile(t *testing.T) {
 	request := newGetRequest(requestUrl)
 	response := httptest.NewRecorder()
 	fileServer.ServeHTTP(response, request)
-	assertIntEquals(t, response.Code, http.StatusOK)
+	testutil.AssertIntEquals(t, response.Code, http.StatusOK)
 	contentDisposition := response.Header().Get("Content-Disposition")
 
 	if !str.StartsWith(contentDisposition, filenamePrefix) {
 		t.Errorf("got uncorrect Content-Disposition")
 	}
 	gotFilename := contentDisposition[len(filenamePrefix):]
-	assertIntEquals(t, response.Code, http.StatusOK)
-	assertStringEqual(t, gotFilename, contentFilename)
+	testutil.AssertIntEquals(t, response.Code, http.StatusOK)
+	testutil.AssertStringEqual(t, gotFilename, contentFilename)
 	downloadFilename := "download-" + gotFilename
 	downloadFile(t, downloadFilename, response.Body)
 	assertFileContentEquals(t, contentFilename, gotFilename)
@@ -482,7 +483,7 @@ func TestUploadByIntegration(t *testing.T) {
 	request := newPostRequestReader(urlInit, strings.NewReader(correctJson))
 	response := httptest.NewRecorder()
 	fileServer.ServeHTTP(response, request)
-	assertIntEquals(t, response.Code, http.StatusOK)
+	testutil.AssertIntEquals(t, response.Code, http.StatusOK)
 	okBody := extractOkBody(response.Body)
 	taskId := okBody.Data["taskId"]
 	uploadUrl := fmt.Sprintf("%s?taskId=%s", urlUpload, taskId)
@@ -494,7 +495,7 @@ func TestUploadByIntegration(t *testing.T) {
 	uploadReq := newPostRequestReader(uploadUrl, contentFile)
 	uploadResponse := httptest.NewRecorder()
 	fileServer.ServeHTTP(uploadResponse, uploadReq)
-	assertIntEquals(t, uploadResponse.Code, http.StatusNoContent)
+	testutil.AssertIntEquals(t, uploadResponse.Code, http.StatusNoContent)
 	assertFileContentEquals(t, contentFilename, dstFilename)
 	_ = os.Remove(dstFilename)
 }
@@ -519,7 +520,7 @@ func TestDownloadFileIntegration(t *testing.T) {
 	responseInit := httptest.NewRecorder()
 	fileServer.ServeHTTP(responseInit, requestInit)
 
-	assertIntEquals(t, responseInit.Code, http.StatusOK)
+	testutil.AssertIntEquals(t, responseInit.Code, http.StatusOK)
 	okBody := extractOkBody(responseInit.Body)
 	taskId := okBody.Data["taskId"]
 
@@ -529,8 +530,8 @@ func TestDownloadFileIntegration(t *testing.T) {
 	fileServer.ServeHTTP(responseDownload, requestDownload)
 
 	gotFilename := responseDownload.Header().Get("Content-Disposition")[len(filenamePrefix):]
-	assertIntEquals(t, responseDownload.Code, http.StatusOK)
-	assertStringEqual(t, gotFilename, contentFilename)
+	testutil.AssertIntEquals(t, responseDownload.Code, http.StatusOK)
+	testutil.AssertStringEqual(t, gotFilename, contentFilename)
 	downloadFilename := "download-" + gotFilename
 	downloadFile(t, downloadFilename, responseDownload.Body)
 	assertFileContentEquals(t, contentFilename, gotFilename)
@@ -545,12 +546,12 @@ func TestTaskNotFound(t *testing.T) {
 		request := fn(requestUrl)
 		response := httptest.NewRecorder()
 		fileServer.ServeHTTP(response, request)
-		assertIntEquals(t, response.Code, http.StatusBadRequest)
+		testutil.AssertIntEquals(t, response.Code, http.StatusBadRequest)
 
 		wantErrorBody := getTaskNotFoundBody()
 		var gotErrorBody filetransfer.ErrorBody
 		_ = json.NewDecoder(response.Body).Decode(&gotErrorBody)
-		assertStructEquals(t, gotErrorBody, wantErrorBody)
+		testutil.AssertStructEquals(t, gotErrorBody, wantErrorBody)
 	}
 
 	test(uploadUrl, func(requestUrl string) *http.Request {

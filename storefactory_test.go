@@ -4,6 +4,7 @@ import (
 	"os"
 	"reflect"
 	"summersea.top/filetransfer"
+	testutil "summersea.top/filetransfer/test"
 	"testing"
 )
 
@@ -31,7 +32,7 @@ func TestCreateStore(t *testing.T) {
 			_ = file.Close()
 
 			dataStore := filetransfer.CreateStoreByConfig()
-			assertStringEqual(t, reflect.ValueOf(dataStore).Elem().Type().Name(), test.wantType)
+			testutil.AssertStringEqual(t, reflect.ValueOf(dataStore).Elem().Type().Name(), test.wantType)
 			_ = os.Remove(file.Name())
 		}
 	})
