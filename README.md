@@ -7,7 +7,8 @@ docker pull xiahaohai123/filetransfer
 
 # 目前的功能
 
-通过http请求上传文件到目标linux服务器。
+- 通过http请求与linux服务器进行文件传输。
+- 支持配置redis
 
 # 第一阶段的目标
 
@@ -139,10 +140,6 @@ Response 200 OK
 
 # Q&A
 
-Q: 功能就这？
+Q: 为什么要做这个？
 
-A: 啊对对对，还在做嘛，抽空做没时间嘛。
-
-Q: 为啥要做这个？
-
-A: 本人在学习golang，整一个项目练手用。
+A: 本人在学习golang和docker，通过这个实践该项目可以获得更深的理解。
