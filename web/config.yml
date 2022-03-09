@@ -2,4 +2,4 @@ store:
   type: redis
   config:
     redis:
-      address: localhost:6379
+      address: redis:6379

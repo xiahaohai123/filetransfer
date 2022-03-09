@@ -11,4 +11,4 @@ RUN go build -o filetransfer web/main.go
 FROM golang
 WORKDIR /usr/local/bin/
 COPY --from=builder /build/filetransfer .
-CMD ./filetransfer
+CMD /usr/local/bin/filetransfer
