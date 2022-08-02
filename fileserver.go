@@ -72,15 +72,34 @@ func (fs *FileServerController) handleDownloadInit(downloadData DownloadData) st
 
 func (fs *FileServerController) uploadHandler(ctx *gin.Context) {
 	taskId := ctx.Query("taskId")
+	// todo 拆分dataAdapter适配器，让职责单一化
 	if !fs.dataAdapter.IsUploadTaskExist(taskId) {
 		ctx.JSON(http.StatusBadRequest, getTaskNotFoundErr())
 	} else {
-		err := fs.handleUpload(taskId, ctx.Request.Body)
-		if err != nil {
-			log.Printf("problem upload file: %v", err)
-			ctx.Status(http.StatusBadRequest)
+		// todo 根据contentType类型，执行不同的传输策略，以支持表单上传
+		contentType := ctx.ContentType()
+		if contentType == "multipart/form-data" {
+			println(contentType)
+			form, err2 := ctx.MultipartForm()
+			if err2 != nil {
+				log.Printf("problem upload file: %v", err2)
+				ctx.Status(http.StatusBadRequest)
+			}
+			for key, b := range form.File {
+				log.Printf("%v", key)
+				filename := b[0].Filename
+				log.Printf("%s", filename)
+				file, _ := b[0].Open()
+				file.Close()
+			}
 		} else {
-			ctx.Status(http.StatusNoContent)
+			err := fs.handleUpload(taskId, ctx.Request.Body)
+			if err != nil {
+				log.Printf("problem upload file: %v", err)
+				ctx.Status(http.StatusBadRequest)
+			} else {
+				ctx.Status(http.StatusNoContent)
+			}
 		}
 	}
 }
